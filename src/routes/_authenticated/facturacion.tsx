@@ -144,7 +144,7 @@ function FacturacionPage() {
             data={series}
             columns={[
               { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => r.codigo },
-              { key: "nombre", header: "Nombre", value: (r) => r.nombre, render: (r) => r.nombre },
+              { key: "descripcion_serie", header: "Descripción", value: (r) => r.descripcion ?? "", render: (r) => r.descripcion ?? "—" },
               {
                 key: "prefijo",
                 header: "Prefijo",
@@ -160,8 +160,8 @@ function FacturacionPage() {
               {
                 key: "siguiente",
                 header: "Siguiente nº",
-                value: (r) => r.siguiente_numero,
-                render: (r) => <span className="tabular">{r.siguiente_numero}</span>,
+                value: (r) => r.proximo_numero,
+                render: (r) => <span className="tabular">{r.proximo_numero}</span>,
               },
               {
                 key: "estado",
@@ -205,11 +205,11 @@ function FacturacionPage() {
               {
                 key: "usos",
                 header: "Usos",
-                value: (r) => r.usos,
+                value: (r) => r.usos_actuales,
                 render: (r) => (
                   <span className="tabular">
-                    {r.usos}
-                    {r.max_usos ? ` / ${r.max_usos}` : ""}
+                    {r.usos_actuales}
+                    {r.usos_maximos ? ` / ${r.usos_maximos}` : ""}
                   </span>
                 ),
               },
@@ -262,11 +262,11 @@ function InvoiceSheet({ invoice, onClose }: { invoice: InvoiceRow | null; onClos
                   <div key={l.id} className="rounded-md border border-border p-3 text-sm">
                     <div className="flex justify-between gap-3">
                       <span className="min-w-0 truncate">{l.concepto}</span>
-                      <span className="tabular shrink-0">{money(Number(l.total))}</span>
+                      <span className="tabular shrink-0">{money(Number(l.importe))}</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {Number(l.cantidad)} × {money(Number(l.precio_unitario))} · IVA{" "}
-                      {pct(Number(l.iva_porcentaje))}
+                      {pct(Number(l.iva_pct))}
                     </p>
                   </div>
                 ))}
