@@ -31,13 +31,13 @@ export interface FieldOption {
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "textarea" | "select" | "switch";
-  options?: FieldOption[];
-  required?: boolean;
-  placeholder?: string;
-  step?: string;
-  full?: boolean;
-  help?: string;
+  type?: "text" | "number" | "date" | "textarea" | "select" | "switch" | undefined;
+  options?: FieldOption[] | undefined;
+  required?: boolean | undefined;
+  placeholder?: string | undefined;
+  step?: string | undefined;
+  full?: boolean | undefined;
+  help?: string | undefined;
 }
 
 interface FormDialogProps {
