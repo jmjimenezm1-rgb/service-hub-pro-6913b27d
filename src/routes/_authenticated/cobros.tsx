@@ -219,7 +219,7 @@ function CobrosPage() {
         modulo="Módulo 9"
         titulo="Gestión de cobros"
         descripcion="Registro de cobros por método de pago, conciliación bancaria y seguimiento de impagos."
-        acciones={
+        actions={
           <Button
             onClick={() => {
               setEditing(null);
