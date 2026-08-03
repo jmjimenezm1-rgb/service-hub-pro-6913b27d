@@ -54,7 +54,7 @@ export function RowActions({ onEdit, onDelete, deleteLabel, extra = [] }: RowAct
           {extra.map((action) => (
             <DropdownMenuItem
               key={action.label}
-              disabled={action.disabled}
+              disabled={action.disabled ?? false}
               onSelect={action.onSelect}
             >
               {action.icon ? <span className="mr-2">{action.icon}</span> : null}
