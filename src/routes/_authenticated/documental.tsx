@@ -190,9 +190,11 @@ function DocumentalPage() {
             {
               label: "Nueva versión",
               icon: <FolderKanban className="h-4 w-4" />,
-              onSelect: () =>
+              onSelect: () => {
+                const codigo = codigoDe(r.nombre) ?? nextExpediente(docs.map((d) => d.nombre));
+                const version = nextVersionFor(codigo, Number(r.version));
                 crud.create.mutate({
-                  nombre: r.nombre,
+                  nombre: buildDocName(codigo, r.nombre, version),
                   tipo: r.tipo,
                   descripcion: r.descripcion,
                   estado: r.estado,
@@ -201,8 +203,26 @@ function DocumentalPage() {
                   storage_path: r.storage_path,
                   tamano_bytes: r.tamano_bytes,
                   parent_document_id: r.id,
-                  version: Number(r.version) + 1,
-                }),
+                  version,
+                });
+              },
+            },
+            {
+              label: "Añadir adjunto",
+              onSelect: () => {
+                const original = window.prompt("Nombre del documento adjunto original:");
+                if (!original?.trim()) return;
+                const codigo = codigoDe(r.nombre) ?? nextExpediente(docs.map((d) => d.nombre));
+                crud.create.mutate({
+                  nombre: buildAttachmentName(codigo, original.trim()),
+                  tipo: "otro",
+                  estado: "activo",
+                  client_id: r.client_id,
+                  invoice_id: r.invoice_id,
+                  parent_document_id: r.id,
+                  version: 1,
+                });
+              },
             },
             {
               label: r.estado === "archivado" ? "Desarchivar" : "Archivar",
@@ -213,6 +233,7 @@ function DocumentalPage() {
                 }),
             },
           ]}
+
         />
       ),
     },
