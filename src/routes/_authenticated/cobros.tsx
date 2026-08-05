@@ -250,6 +250,22 @@ function CobrosPage() {
       render: (r) => fecha(r.fecha_cobro ?? r.fecha_prevista),
     },
     {
+      key: "aging",
+      header: "Antigüedad",
+      value: (r) => (r.estado === "cobrado" ? 0 : diasVencido(r.fecha_prevista)),
+      render: (r) => {
+        if (r.estado === "cobrado") return <span className="text-muted-foreground">—</span>;
+        const dias = diasVencido(r.fecha_prevista);
+        return dias > 0 ? (
+          <span className="inline-flex items-center gap-1 text-sm text-destructive">
+            <Clock className="h-4 w-4" /> {dias} d · {tramoAging(dias)}
+          </span>
+        ) : (
+          <span className="text-sm text-muted-foreground">Al corriente</span>
+        );
+      },
+    },
+    {
       key: "importe",
       header: "Importe",
       value: (r) => Number(r.importe),
@@ -286,19 +302,37 @@ function CobrosPage() {
             setEditing(r);
             setOpen(true);
           }}
-          onDelete={() => crud.remove.mutate(r.id)}
+          onDelete={() => void eliminar(r)}
           deleteLabel="¿Eliminar este cobro?"
           extra={[
             {
               label: "Marcar como cobrado",
               icon: <Banknote className="h-4 w-4" />,
-              onSelect: () => marcarCobrado(r),
+              onSelect: () => void marcarCobrado(r),
               disabled: r.estado === "cobrado",
+            },
+            {
+              label: "Marcar como impagado",
+              icon: <TriangleAlert className="h-4 w-4" />,
+              onSelect: () => void marcarImpagado(r),
+              disabled: r.estado === "impagado",
             },
             {
               label: r.conciliado ? "Deshacer conciliación" : "Conciliar",
               icon: <Link2 className="h-4 w-4" />,
               onSelect: () => conciliar(r),
+            },
+            {
+              label: "Enviar aviso de impago",
+              icon: <CircleAlert className="h-4 w-4" />,
+              onSelect: () => enviarAviso(r),
+              disabled: r.aviso_enviado || r.estado === "cobrado",
+            },
+            {
+              label: "Contabilizar cobro",
+              icon: <BookOpen className="h-4 w-4" />,
+              onSelect: () => void contabilizar(r),
+              disabled: r.estado !== "cobrado",
             },
           ]}
         />
@@ -324,13 +358,13 @@ function CobrosPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard titulo="Cobrado" valor={money(cobrado)} icon={Banknote} tone="success" />
         <KpiCard
           titulo="Pendiente"
           valor={money(pendientes.reduce((a, p) => a + Number(p.importe), 0))}
-          detalle={`${pendientes.length} cobros`}
-          icon={Banknote}
+          detalle={`${pendientes.length} cobros · ${vencidos.length} vencidos`}
+          icon={Clock}
           tone="warning"
         />
         <KpiCard
@@ -340,15 +374,67 @@ function CobrosPage() {
           icon={CircleAlert}
           tone="destructive"
         />
+        <KpiCard
+          titulo="Sin conciliar"
+          valor={money(sinConciliar.reduce((a, p) => a + Number(p.importe), 0))}
+          detalle={`${sinConciliar.length} cobros por conciliar`}
+          icon={Link2}
+          tone="info"
+        />
       </div>
 
-      <DataTable
-        data={payments}
-        columns={columns}
-        loading={isLoading}
-        searchPlaceholder="Buscar por referencia, cliente o factura…"
-        onExport={() => exportCsv("cobros", payments, columns)}
-      />
+      <Tabs defaultValue="cobros">
+        <TabsList>
+          <TabsTrigger value="cobros">Cobros</TabsTrigger>
+          <TabsTrigger value="conciliacion">Conciliación</TabsTrigger>
+          <TabsTrigger value="aging">Antigüedad de deuda</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cobros" className="mt-4">
+          <DataTable
+            data={payments}
+            columns={columns}
+            loading={isLoading}
+            searchPlaceholder="Buscar por referencia, cliente o factura…"
+            onExport={() => exportCsv("cobros", payments, columns)}
+          />
+        </TabsContent>
+
+        <TabsContent value="conciliacion" className="mt-4">
+          <DataTable
+            data={sinConciliar}
+            columns={columns}
+            loading={isLoading}
+            searchPlaceholder="Buscar cobro sin conciliar…"
+            onExport={() => exportCsv("conciliacion", sinConciliar, columns)}
+          />
+        </TabsContent>
+
+        <TabsContent value="aging" className="mt-4">
+          <DataTable
+            data={aging}
+            columns={[
+              { key: "tramo", header: "Tramo", value: (r) => r.tramo, render: (r) => r.tramo },
+              {
+                key: "cobros",
+                header: "Cobros",
+                value: (r) => r.cobros,
+                className: "text-right",
+                render: (r) => <span className="tabular">{r.cobros}</span>,
+              },
+              {
+                key: "importe",
+                header: "Importe pendiente",
+                value: (r) => r.importe,
+                className: "text-right",
+                render: (r) => <span className="tabular font-medium">{money(r.importe)}</span>,
+              },
+            ]}
+            searchable={false}
+          />
+        </TabsContent>
+      </Tabs>
+
 
       <FormDialog
         open={open}
