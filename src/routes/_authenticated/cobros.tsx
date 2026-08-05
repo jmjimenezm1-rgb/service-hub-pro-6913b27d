@@ -430,7 +430,7 @@ function CobrosPage() {
                 render: (r) => <span className="tabular font-medium">{money(r.importe)}</span>,
               },
             ]}
-            searchable={false}
+            searchPlaceholder="Buscar tramo…"
           />
         </TabsContent>
       </Tabs>
