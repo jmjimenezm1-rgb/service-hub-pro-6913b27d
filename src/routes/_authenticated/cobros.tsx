@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { BadgeCheck, Banknote, CircleAlert, Link2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import {
+  BadgeCheck,
+  Banknote,
+  BookOpen,
+  CircleAlert,
+  Clock,
+  Link2,
+  Plus,
+  TriangleAlert,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -10,6 +20,7 @@ import { DataTable, exportCsv, type Column } from "@/components/shared/DataTable
 import { FormDialog, type Field } from "@/components/shared/FormDialog";
 import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   paymentsQuery,
   openInvoicesQuery,
@@ -17,9 +28,16 @@ import {
   PAYMENT_STATES,
   type PaymentRow,
 } from "@/modules/cobros/api";
+import {
+  diasVencido,
+  postPaymentToLedger,
+  syncInvoicePayments,
+  tramoAging,
+} from "@/modules/facturacion/logic";
 import { clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
 import { money, fecha, label } from "@/lib/format";
+
 
 export const Route = createFileRoute("/_authenticated/cobros")({
   head: () => ({
