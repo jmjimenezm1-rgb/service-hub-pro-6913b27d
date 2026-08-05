@@ -298,7 +298,7 @@ function FinancieroPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard titulo="Total debe" valor={money(debe)} icon={BookOpen} />
         <KpiCard titulo="Total haber" valor={money(haber)} icon={Wallet} tone="info" />
         <KpiCard
@@ -308,14 +308,92 @@ function FinancieroPage() {
           icon={Scale}
           tone={debe === haber ? "success" : "destructive"}
         />
+        <KpiCard
+          titulo="Resultado del periodo"
+          valor={money(resultado)}
+          detalle={`Ingresos ${money(ingresos)} · Gastos ${money(gastos)}`}
+          icon={Scale}
+          tone={resultado >= 0 ? "success" : "destructive"}
+        />
       </div>
 
       <Tabs defaultValue="asientos">
         <TabsList>
           <TabsTrigger value="asientos">Asientos</TabsTrigger>
+          <TabsTrigger value="balance">Sumas y saldos</TabsTrigger>
           <TabsTrigger value="cuentas">Plan de cuentas</TabsTrigger>
           <TabsTrigger value="centros">Centros de coste</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="balance" className="mt-4">
+          <DataTable
+            data={balance}
+            toolbar={
+              <Select value={ejercicio} onValueChange={setEjercicio}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Ejercicio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los ejercicios</SelectItem>
+                  {ejercicios.map((e) => (
+                    <SelectItem key={e} value={e}>
+                      Ejercicio {e}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            columns={[
+              { key: "codigo", header: "Cuenta", value: (r) => r.codigo, render: (r) => r.codigo },
+              { key: "nombre", header: "Denominación", value: (r) => r.nombre, render: (r) => r.nombre },
+              {
+                key: "naturaleza",
+                header: "Naturaleza",
+                value: (r) => r.naturaleza,
+                render: (r) => label(r.naturaleza),
+              },
+              {
+                key: "debe",
+                header: "Debe",
+                className: "text-right",
+                value: (r) => r.debe,
+                render: (r) => <span className="tabular">{money(r.debe)}</span>,
+              },
+              {
+                key: "haber",
+                header: "Haber",
+                className: "text-right",
+                value: (r) => r.haber,
+                render: (r) => <span className="tabular">{money(r.haber)}</span>,
+              },
+              {
+                key: "saldo",
+                header: "Saldo",
+                className: "text-right",
+                value: (r) => r.debe - r.haber,
+                render: (r) => (
+                  <span className="tabular font-medium">{money(r.debe - r.haber)}</span>
+                ),
+              },
+            ]}
+            searchPlaceholder="Buscar cuenta…"
+            onExport={() =>
+              exportCsv("balance-sumas-y-saldos", balance, [
+                { key: "codigo", header: "Cuenta", value: (r) => r.codigo, render: (r) => r.codigo },
+                { key: "nombre", header: "Denominación", value: (r) => r.nombre, render: (r) => r.nombre },
+                { key: "debe", header: "Debe", value: (r) => r.debe, render: (r) => money(r.debe) },
+                { key: "haber", header: "Haber", value: (r) => r.haber, render: (r) => money(r.haber) },
+                {
+                  key: "saldo",
+                  header: "Saldo",
+                  value: (r) => r.debe - r.haber,
+                  render: (r) => money(r.debe - r.haber),
+                },
+              ])
+            }
+          />
+        </TabsContent>
+
 
         <TabsContent value="asientos" className="mt-4">
           <DataTable
