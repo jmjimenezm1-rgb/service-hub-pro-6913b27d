@@ -14,6 +14,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
 import { bytes, fecha, label } from "@/lib/format";
+import {
+  baseDe,
+  buildAttachmentName,
+  buildDocName,
+  codigoDe,
+  nextExpediente,
+  parseDocName,
+} from "@/lib/expediente";
 
 interface DocRow {
   id: string;
