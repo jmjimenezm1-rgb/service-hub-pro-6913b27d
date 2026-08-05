@@ -44,8 +44,25 @@ interface LineRow {
   ledger_accounts: { codigo: string; nombre: string } | null;
 }
 
+interface PostingRow {
+  debe: number;
+  haber: number;
+  ledger_accounts: { codigo: string; nombre: string; naturaleza: string } | null;
+  journal_entries: { ejercicio: number; deleted_at: string | null };
+}
+
+interface BalanceRow {
+  id: string;
+  codigo: string;
+  nombre: string;
+  naturaleza: string;
+  debe: number;
+  haber: number;
+}
+
 const ESTADOS = ["activo", "borrador", "inactivo", "archivado"];
 const NATURALEZAS = ["activo", "pasivo", "patrimonio", "ingreso", "gasto"];
+
 
 export const Route = createFileRoute("/_authenticated/financiero")({
   head: () => ({
