@@ -108,14 +108,34 @@ function DocumentalPage() {
     invalidate: [["documental"]],
   });
 
+  const nextVersionFor = (codigo: string | null, current: number) => {
+    if (!codigo) return current + 1;
+    const max = docs
+      .filter((d) => codigoDe(d.nombre) === codigo)
+      .reduce((a, d) => Math.max(a, parseDocName(d.nombre)?.version ?? Number(d.version)), 0);
+    return Math.max(max, current) + 1;
+  };
+
   const columns: Column<DocRow>[] = [
     {
       key: "nombre",
       header: "Documento",
       value: (r) => r.nombre,
-      render: (r) => <span className="font-medium">{r.nombre}</span>,
+      render: (r) => (
+        <div className="min-w-0">
+          <span className="font-medium">{baseDe(r.nombre)}</span>
+          <p className="truncate text-xs text-muted-foreground">{r.nombre}</p>
+        </div>
+      ),
+    },
+    {
+      key: "expediente",
+      header: "Expediente",
+      value: (r) => codigoDe(r.nombre) ?? "",
+      render: (r) => <span className="tabular">{codigoDe(r.nombre) ?? "—"}</span>,
     },
     { key: "tipo", header: "Tipo", value: (r) => r.tipo, render: (r) => label(r.tipo) },
+
     {
       key: "cliente",
       header: "Cliente",
