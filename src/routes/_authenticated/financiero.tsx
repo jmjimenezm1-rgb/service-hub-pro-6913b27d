@@ -12,6 +12,14 @@ import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -44,8 +52,25 @@ interface LineRow {
   ledger_accounts: { codigo: string; nombre: string } | null;
 }
 
+interface PostingRow {
+  debe: number;
+  haber: number;
+  ledger_accounts: { codigo: string; nombre: string; naturaleza: string } | null;
+  journal_entries: { ejercicio: number; deleted_at: string | null };
+}
+
+interface BalanceRow {
+  id: string;
+  codigo: string;
+  nombre: string;
+  naturaleza: string;
+  debe: number;
+  haber: number;
+}
+
 const ESTADOS = ["activo", "borrador", "inactivo", "archivado"];
 const NATURALEZAS = ["activo", "pasivo", "patrimonio", "ingreso", "gasto"];
+
 
 export const Route = createFileRoute("/_authenticated/financiero")({
   head: () => ({
@@ -114,6 +139,63 @@ function FinancieroPage() {
       return data ?? [];
     },
   });
+
+  /** Apuntes con su cuenta y ejercicio, para el balance de sumas y saldos. */
+  const { data: postings = [] } = useQuery({
+    queryKey: ["financiero", "postings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("journal_lines")
+        .select(
+          "debe, haber, ledger_accounts(codigo, nombre, naturaleza), journal_entries!inner(ejercicio, deleted_at)",
+        )
+        .is("deleted_at", null);
+      if (error) throw error;
+      return (data ?? []) as unknown as PostingRow[];
+    },
+  });
+
+  const ejercicios = useMemo(
+    () =>
+      Array.from(new Set(postings.map((p) => p.journal_entries.ejercicio)))
+        .sort((a, b) => b - a)
+        .map(String),
+    [postings],
+  );
+  const [ejercicio, setEjercicio] = useState<string>("todos");
+
+  const balance = useMemo(() => {
+    const map = new Map<string, BalanceRow>();
+    for (const p of postings) {
+      if (p.journal_entries.deleted_at) continue;
+      if (ejercicio !== "todos" && String(p.journal_entries.ejercicio) !== ejercicio) continue;
+      const acc = p.ledger_accounts;
+      if (!acc) continue;
+      const row =
+        map.get(acc.codigo) ??
+        ({
+          id: acc.codigo,
+          codigo: acc.codigo,
+          nombre: acc.nombre,
+          naturaleza: acc.naturaleza,
+          debe: 0,
+          haber: 0,
+        } as BalanceRow);
+      row.debe += Number(p.debe);
+      row.haber += Number(p.haber);
+      map.set(acc.codigo, row);
+    }
+    return Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
+  }, [postings, ejercicio]);
+
+  const ingresos = balance
+    .filter((b) => b.naturaleza === "ingreso")
+    .reduce((a, b) => a + b.haber - b.debe, 0);
+  const gastos = balance
+    .filter((b) => b.naturaleza === "gasto")
+    .reduce((a, b) => a + b.debe - b.haber, 0);
+  const resultado = ingresos - gastos;
+
 
   const entryCrud = useCrud("journal_entries", {
     modulo: "financiero",
@@ -224,7 +306,7 @@ function FinancieroPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard titulo="Total debe" valor={money(debe)} icon={BookOpen} />
         <KpiCard titulo="Total haber" valor={money(haber)} icon={Wallet} tone="info" />
         <KpiCard
@@ -234,14 +316,92 @@ function FinancieroPage() {
           icon={Scale}
           tone={debe === haber ? "success" : "destructive"}
         />
+        <KpiCard
+          titulo="Resultado del periodo"
+          valor={money(resultado)}
+          detalle={`Ingresos ${money(ingresos)} · Gastos ${money(gastos)}`}
+          icon={Scale}
+          tone={resultado >= 0 ? "success" : "destructive"}
+        />
       </div>
 
       <Tabs defaultValue="asientos">
         <TabsList>
           <TabsTrigger value="asientos">Asientos</TabsTrigger>
+          <TabsTrigger value="balance">Sumas y saldos</TabsTrigger>
           <TabsTrigger value="cuentas">Plan de cuentas</TabsTrigger>
           <TabsTrigger value="centros">Centros de coste</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="balance" className="mt-4">
+          <DataTable
+            data={balance}
+            toolbar={
+              <Select value={ejercicio} onValueChange={setEjercicio}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Ejercicio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los ejercicios</SelectItem>
+                  {ejercicios.map((e) => (
+                    <SelectItem key={e} value={e}>
+                      Ejercicio {e}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            columns={[
+              { key: "codigo", header: "Cuenta", value: (r) => r.codigo, render: (r) => r.codigo },
+              { key: "nombre", header: "Denominación", value: (r) => r.nombre, render: (r) => r.nombre },
+              {
+                key: "naturaleza",
+                header: "Naturaleza",
+                value: (r) => r.naturaleza,
+                render: (r) => label(r.naturaleza),
+              },
+              {
+                key: "debe",
+                header: "Debe",
+                className: "text-right",
+                value: (r) => r.debe,
+                render: (r) => <span className="tabular">{money(r.debe)}</span>,
+              },
+              {
+                key: "haber",
+                header: "Haber",
+                className: "text-right",
+                value: (r) => r.haber,
+                render: (r) => <span className="tabular">{money(r.haber)}</span>,
+              },
+              {
+                key: "saldo",
+                header: "Saldo",
+                className: "text-right",
+                value: (r) => r.debe - r.haber,
+                render: (r) => (
+                  <span className="tabular font-medium">{money(r.debe - r.haber)}</span>
+                ),
+              },
+            ]}
+            searchPlaceholder="Buscar cuenta…"
+            onExport={() =>
+              exportCsv("balance-sumas-y-saldos", balance, [
+                { key: "codigo", header: "Cuenta", value: (r) => r.codigo, render: (r) => r.codigo },
+                { key: "nombre", header: "Denominación", value: (r) => r.nombre, render: (r) => r.nombre },
+                { key: "debe", header: "Debe", value: (r) => r.debe, render: (r) => money(r.debe) },
+                { key: "haber", header: "Haber", value: (r) => r.haber, render: (r) => money(r.haber) },
+                {
+                  key: "saldo",
+                  header: "Saldo",
+                  value: (r) => r.debe - r.haber,
+                  render: (r) => money(r.debe - r.haber),
+                },
+              ])
+            }
+          />
+        </TabsContent>
+
 
         <TabsContent value="asientos" className="mt-4">
           <DataTable

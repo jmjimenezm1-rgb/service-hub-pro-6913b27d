@@ -2,7 +2,18 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, FileText, Percent, Plus, Receipt, Send, TicketPercent, Trash2 } from "lucide-react";
+import {
+  Ban,
+  BookOpen,
+  FileText,
+  Percent,
+  Plus,
+  Receipt,
+  RotateCcw,
+  Send,
+  TicketPercent,
+  Trash2,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -33,6 +44,11 @@ import {
   INVOICE_TYPES,
   type InvoiceRow,
 } from "@/modules/facturacion/api";
+import {
+  createRectificativa,
+  postInvoiceToLedger,
+  syncInvoicePayments,
+} from "@/modules/facturacion/logic";
 import { applicationsQuery, clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
 import { money, fecha, pct, label } from "@/lib/format";
@@ -146,6 +162,37 @@ function FacturacionPage() {
     setEditingInvoice(null);
   };
 
+  const recalcularSaldo = async (r: InvoiceRow) => {
+    try {
+      await syncInvoicePayments(r.id);
+      toast.success(`Saldo de ${r.numero} actualizado con los cobros registrados`);
+      void qc.invalidateQueries({ queryKey: ["facturacion"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const contabilizar = async (r: InvoiceRow) => {
+    try {
+      const numero = await postInvoiceToLedger(r.id);
+      toast.success(`Factura contabilizada en el asiento ${numero}`);
+      void qc.invalidateQueries({ queryKey: ["financiero"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const rectificar = async (r: InvoiceRow) => {
+    try {
+      const numero = await createRectificativa(r.id);
+      toast.success(`Rectificativa ${numero} creada en borrador`);
+      void qc.invalidateQueries({ queryKey: ["facturacion"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
   const total = invoices.reduce((a, i) => a + Number(i.total), 0);
   const iva = invoices.reduce((a, i) => a + Number(i.iva), 0);
   const pendiente = invoices.reduce(
@@ -233,6 +280,24 @@ function FacturacionPage() {
                   values: { estado: "pagada", pagado: Number(r.total) },
                 }),
               disabled: r.estado === "pagada",
+            },
+            {
+              label: "Recalcular saldo con cobros",
+              icon: <RotateCcw className="h-4 w-4" />,
+              onSelect: () => void recalcularSaldo(r),
+              disabled: r.estado === "anulada",
+            },
+            {
+              label: "Contabilizar factura",
+              icon: <BookOpen className="h-4 w-4" />,
+              onSelect: () => void contabilizar(r),
+              disabled: r.estado === "borrador" || r.estado === "anulada",
+            },
+            {
+              label: "Emitir rectificativa",
+              icon: <Ban className="h-4 w-4" />,
+              onSelect: () => void rectificar(r),
+              disabled: r.tipo !== "ordinaria",
             },
             {
               label: "Anular factura",
