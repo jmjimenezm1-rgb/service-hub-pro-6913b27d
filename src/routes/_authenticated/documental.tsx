@@ -14,14 +14,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
 import { bytes, fecha, label } from "@/lib/format";
-import {
-  baseDe,
-  buildAttachmentName,
-  buildDocName,
-  codigoDe,
-  nextExpediente,
-  parseDocName,
-} from "@/lib/expediente";
 
 interface DocRow {
   id: string;
@@ -108,34 +100,14 @@ function DocumentalPage() {
     invalidate: [["documental"]],
   });
 
-  const nextVersionFor = (codigo: string | null, current: number) => {
-    if (!codigo) return current + 1;
-    const max = docs
-      .filter((d) => codigoDe(d.nombre) === codigo)
-      .reduce((a, d) => Math.max(a, parseDocName(d.nombre)?.version ?? Number(d.version)), 0);
-    return Math.max(max, current) + 1;
-  };
-
   const columns: Column<DocRow>[] = [
     {
       key: "nombre",
       header: "Documento",
       value: (r) => r.nombre,
-      render: (r) => (
-        <div className="min-w-0">
-          <span className="font-medium">{baseDe(r.nombre)}</span>
-          <p className="truncate text-xs text-muted-foreground">{r.nombre}</p>
-        </div>
-      ),
-    },
-    {
-      key: "expediente",
-      header: "Expediente",
-      value: (r) => codigoDe(r.nombre) ?? "",
-      render: (r) => <span className="tabular">{codigoDe(r.nombre) ?? "—"}</span>,
+      render: (r) => <span className="font-medium">{r.nombre}</span>,
     },
     { key: "tipo", header: "Tipo", value: (r) => r.tipo, render: (r) => label(r.tipo) },
-
     {
       key: "cliente",
       header: "Cliente",
@@ -190,11 +162,9 @@ function DocumentalPage() {
             {
               label: "Nueva versión",
               icon: <FolderKanban className="h-4 w-4" />,
-              onSelect: () => {
-                const codigo = codigoDe(r.nombre) ?? nextExpediente(docs.map((d) => d.nombre));
-                const version = nextVersionFor(codigo, Number(r.version));
+              onSelect: () =>
                 crud.create.mutate({
-                  nombre: buildDocName(codigo, r.nombre, version),
+                  nombre: r.nombre,
                   tipo: r.tipo,
                   descripcion: r.descripcion,
                   estado: r.estado,
@@ -203,26 +173,8 @@ function DocumentalPage() {
                   storage_path: r.storage_path,
                   tamano_bytes: r.tamano_bytes,
                   parent_document_id: r.id,
-                  version,
-                });
-              },
-            },
-            {
-              label: "Añadir adjunto",
-              onSelect: () => {
-                const original = window.prompt("Nombre del documento adjunto original:");
-                if (!original?.trim()) return;
-                const codigo = codigoDe(r.nombre) ?? nextExpediente(docs.map((d) => d.nombre));
-                crud.create.mutate({
-                  nombre: buildAttachmentName(codigo, original.trim()),
-                  tipo: "otro",
-                  estado: "activo",
-                  client_id: r.client_id,
-                  invoice_id: r.invoice_id,
-                  parent_document_id: r.id,
-                  version: 1,
-                });
-              },
+                  version: Number(r.version) + 1,
+                }),
             },
             {
               label: r.estado === "archivado" ? "Desarchivar" : "Archivar",
@@ -233,7 +185,6 @@ function DocumentalPage() {
                 }),
             },
           ]}
-
         />
       ),
     },
