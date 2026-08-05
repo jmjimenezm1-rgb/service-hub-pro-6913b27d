@@ -115,6 +115,63 @@ function FinancieroPage() {
     },
   });
 
+  /** Apuntes con su cuenta y ejercicio, para el balance de sumas y saldos. */
+  const { data: postings = [] } = useQuery({
+    queryKey: ["financiero", "postings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("journal_lines")
+        .select(
+          "debe, haber, ledger_accounts(codigo, nombre, naturaleza), journal_entries!inner(ejercicio, deleted_at)",
+        )
+        .is("deleted_at", null);
+      if (error) throw error;
+      return (data ?? []) as unknown as PostingRow[];
+    },
+  });
+
+  const ejercicios = useMemo(
+    () =>
+      Array.from(new Set(postings.map((p) => p.journal_entries.ejercicio)))
+        .sort((a, b) => b - a)
+        .map(String),
+    [postings],
+  );
+  const [ejercicio, setEjercicio] = useState<string>("todos");
+
+  const balance = useMemo(() => {
+    const map = new Map<string, BalanceRow>();
+    for (const p of postings) {
+      if (p.journal_entries.deleted_at) continue;
+      if (ejercicio !== "todos" && String(p.journal_entries.ejercicio) !== ejercicio) continue;
+      const acc = p.ledger_accounts;
+      if (!acc) continue;
+      const row =
+        map.get(acc.codigo) ??
+        ({
+          id: acc.codigo,
+          codigo: acc.codigo,
+          nombre: acc.nombre,
+          naturaleza: acc.naturaleza,
+          debe: 0,
+          haber: 0,
+        } as BalanceRow);
+      row.debe += Number(p.debe);
+      row.haber += Number(p.haber);
+      map.set(acc.codigo, row);
+    }
+    return Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
+  }, [postings, ejercicio]);
+
+  const ingresos = balance
+    .filter((b) => b.naturaleza === "ingreso")
+    .reduce((a, b) => a + b.haber - b.debe, 0);
+  const gastos = balance
+    .filter((b) => b.naturaleza === "gasto")
+    .reduce((a, b) => a + b.debe - b.haber, 0);
+  const resultado = ingresos - gastos;
+
+
   const entryCrud = useCrud("journal_entries", {
     modulo: "financiero",
     entidad: "Asiento",
