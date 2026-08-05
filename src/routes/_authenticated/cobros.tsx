@@ -58,6 +58,7 @@ export const Route = createFileRoute("/_authenticated/cobros")({
 });
 
 function CobrosPage() {
+  const qc = useQueryClient();
   const { data: payments = [], isLoading } = useQuery(paymentsQuery);
   const { data: clients = [] } = useQuery(clientsQuery);
   const { data: invoices = [] } = useQuery(openInvoicesQuery);
@@ -68,8 +69,27 @@ function CobrosPage() {
   const crud = useCrud("payments", {
     modulo: "cobros",
     entidad: "Cobro",
-    invalidate: [["cobros"], ["facturacion"], ["dashboard"]],
+    invalidate: [["cobros"], ["facturacion"], ["dashboard"], ["financiero"]],
   });
+
+  /** Tras cualquier movimiento, recalcula el saldo de la factura vinculada. */
+  const sync = async (invoiceId: string | null | undefined) => {
+    if (!invoiceId) return;
+    try {
+      await syncInvoicePayments(invoiceId);
+      void qc.invalidateQueries({ queryKey: ["facturacion"] });
+      void qc.invalidateQueries({ queryKey: ["cobros"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (e) {
+      toast.error(`No se pudo actualizar la factura: ${(e as Error).message}`);
+    }
+  };
+
+  const nextRef = () => {
+    const year = new Date().getFullYear();
+    const n = payments.filter((p) => p.referencia.includes(String(year))).length + 1;
+    return `COB-${year}-${String(n).padStart(4, "0")}`;
+  };
 
   const fields: Field[] = useMemo(
     () => [
@@ -84,6 +104,7 @@ function CobrosPage() {
         name: "invoice_id",
         label: "Factura",
         type: "select",
+        help: "El saldo de la factura se recalcula automáticamente con los cobros registrados.",
         options: invoices.map((i) => ({
           value: i.id,
           label: `${i.numero} · pendiente ${money(Number(i.total) - Number(i.pagado))}`,
@@ -116,17 +137,52 @@ function CobrosPage() {
   );
 
   const submit = async (values: Payload) => {
-    if (editing) await crud.update.mutateAsync({ id: editing.id, values });
-    else await crud.create.mutateAsync(values);
+    if (editing) {
+      await crud.update.mutateAsync({ id: editing.id, values });
+      await sync(editing.invoice_id);
+      if (values["invoice_id"] && values["invoice_id"] !== editing.invoice_id)
+        await sync(String(values["invoice_id"]));
+    } else {
+      await crud.create.mutateAsync(values);
+      await sync(values["invoice_id"] ? String(values["invoice_id"]) : null);
+    }
     setOpen(false);
     setEditing(null);
   };
 
-  const marcarCobrado = (row: PaymentRow) =>
-    crud.update.mutate({
+  const marcarCobrado = async (row: PaymentRow) => {
+    await crud.update.mutateAsync({
       id: row.id,
       values: { estado: "cobrado", fecha_cobro: new Date().toISOString().slice(0, 10) },
     });
+    await sync(row.invoice_id);
+  };
+
+  const marcarImpagado = async (row: PaymentRow) => {
+    await crud.update.mutateAsync({
+      id: row.id,
+      values: { estado: "impagado", fecha_devolucion: new Date().toISOString().slice(0, 10) },
+    });
+    await sync(row.invoice_id);
+  };
+
+  const enviarAviso = (row: PaymentRow) =>
+    crud.update.mutate({ id: row.id, values: { aviso_enviado: true } });
+
+  const contabilizar = async (row: PaymentRow) => {
+    try {
+      const numero = await postPaymentToLedger(row.id);
+      toast.success(`Cobro contabilizado en el asiento ${numero}`);
+      void qc.invalidateQueries({ queryKey: ["financiero"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const eliminar = async (row: PaymentRow) => {
+    await crud.remove.mutateAsync(row.id);
+    await sync(row.invoice_id);
+  };
 
   const conciliar = (row: PaymentRow) =>
     crud.update.mutate({
@@ -142,6 +198,25 @@ function CobrosPage() {
     .reduce((a, p) => a + Number(p.importe), 0);
   const pendientes = payments.filter((p) => p.estado === "pendiente");
   const impagados = payments.filter((p) => p.estado === "impagado" || p.estado === "devuelto");
+  const vencidos = pendientes.filter((p) => diasVencido(p.fecha_prevista) > 0);
+  const sinConciliar = payments.filter((p) => p.estado === "cobrado" && !p.conciliado);
+
+  /** Antigüedad de la deuda pendiente por tramos. */
+  const aging = useMemo(() => {
+    const tramos = ["Al corriente", "1-30 días", "31-60 días", "61-90 días", "+90 días"];
+    const abiertos = payments.filter((p) => p.estado === "pendiente" || p.estado === "impagado");
+    return tramos.map((tramo) => {
+      const rows = abiertos.filter((p) => tramoAging(diasVencido(p.fecha_prevista)) === tramo);
+      return {
+        id: tramo,
+        tramo,
+        cobros: rows.length,
+        importe: rows.reduce((a, p) => a + Number(p.importe), 0),
+      };
+    });
+  }, [payments]);
+
+
 
   const columns: Column<PaymentRow>[] = [
     {
