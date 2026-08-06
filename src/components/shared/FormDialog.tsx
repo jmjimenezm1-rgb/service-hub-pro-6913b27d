@@ -104,6 +104,7 @@ export function FormDialog({
     for (const f of fields) {
       const raw = values[f.name];
       if (f.type === "switch") parsed[f.name] = Boolean(raw);
+      else if (f.type === "file") parsed[f.name] = raw ?? null;
       else if (f.type === "number") parsed[f.name] = raw === "" ? null : Number(raw);
       else parsed[f.name] = raw === "" ? null : raw;
     }
