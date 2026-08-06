@@ -152,7 +152,8 @@ function CobrosPage() {
       if (values["invoice_id"] && values["invoice_id"] !== editing.invoice_id)
         await sync(String(values["invoice_id"]));
     } else {
-      await crud.create.mutateAsync(values);
+      const referencia = values["referencia"] ? String(values["referencia"]) : await nextRef();
+      await crud.create.mutateAsync({ ...values, referencia });
       await sync(values["invoice_id"] ? String(values["invoice_id"]) : null);
     }
     setOpen(false);
