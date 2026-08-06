@@ -47,13 +47,27 @@ import {
   type InvoiceRow,
 } from "@/modules/facturacion/api";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  anularFactura,
   createRectificativa,
   postInvoiceToLedger,
+  requiereRectificativa,
   syncInvoicePayments,
 } from "@/modules/facturacion/logic";
 import { applicationsQuery, clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
-import { money, fecha, pct, label } from "@/lib/format";
+import { generateInvoicePdf, openStoredFile } from "@/lib/invoice-pdf";
+import { supabase } from "@/integrations/supabase/client";
+import { money, fecha, pct, label, bytes } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/facturacion")({
   head: () => ({
