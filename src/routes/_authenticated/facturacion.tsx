@@ -362,15 +362,20 @@ function FacturacionPage() {
               disabled: r.estado === "borrador" || r.estado === "anulada",
             },
             {
+              label: "Generar PDF y archivar",
+              icon: <FileDown className="h-4 w-4" />,
+              onSelect: () => void generarPdf(r),
+            },
+            {
               label: "Emitir rectificativa",
-              icon: <Ban className="h-4 w-4" />,
+              icon: <RotateCcw className="h-4 w-4" />,
               onSelect: () => void rectificar(r),
               disabled: r.tipo !== "ordinaria",
             },
             {
               label: "Anular factura",
               icon: <Ban className="h-4 w-4" />,
-              onSelect: () => invoiceCrud.update.mutate({ id: r.id, values: { estado: "anulada" } }),
+              onSelect: () => setAnulando(r),
               disabled: r.estado === "anulada",
             },
           ]}
