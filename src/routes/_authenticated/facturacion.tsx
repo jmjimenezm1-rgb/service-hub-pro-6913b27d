@@ -852,7 +852,48 @@ function InvoiceSheet({ invoice, onClose }: { invoice: InvoiceRow | null; onClos
                   strong
                 />
               </dl>
+
+              <div className="space-y-2 border-t border-border pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Documentos de la factura</h3>
+                  <Button size="sm" variant="outline" onClick={() => void generar()} disabled={pdfBusy}>
+                    <FileDown className="mr-1.5 h-4 w-4" />
+                    {pdfBusy ? "Generando…" : "Generar PDF"}
+                  </Button>
+                </div>
+                {docs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Todavía no hay documentos archivados para esta factura.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {docs.map((d) => (
+                      <li
+                        key={d.id}
+                        className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{d.nombre}</span>
+                          <span className="text-xs text-muted-foreground">
+                            v{d.version} · {fecha(d.created_at)}
+                            {d.tamano_bytes ? ` · ${bytes(Number(d.tamano_bytes))}` : ""}
+                          </span>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={!d.storage_path}
+                          onClick={() => void openStoredFile(d.storage_path ?? "")}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
+
 
             <FormDialog
               open={lineOpen}
