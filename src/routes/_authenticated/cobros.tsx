@@ -85,7 +85,10 @@ function CobrosPage() {
     }
   };
 
-  const nextRef = () => {
+  /** Referencia automática según el patrón parametrizado (con respaldo local). */
+  const nextRef = async () => {
+    const fromPattern = await nextCode("cobro");
+    if (fromPattern) return fromPattern;
     const year = new Date().getFullYear();
     const n = payments.filter((p) => p.referencia.includes(String(year))).length + 1;
     return `COB-${year}-${String(n).padStart(4, "0")}`;
