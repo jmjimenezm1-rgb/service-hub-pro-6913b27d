@@ -163,6 +163,14 @@ export function FormDialog({
                       onCheckedChange={(v) => set(field.name, v)}
                     />
                   </div>
+                ) : field.type === "file" ? (
+                  <Input
+                    id={field.name}
+                    type="file"
+                    accept={field.accept}
+                    className="cursor-pointer file:mr-3 file:text-sm file:text-muted-foreground"
+                    onChange={(e) => set(field.name, e.target.files?.[0] ?? null)}
+                  />
                 ) : (
                   <Input
                     id={field.name}
