@@ -83,13 +83,18 @@ export const Route = createFileRoute("/_authenticated/facturacion")({
         property: "og:description",
         content: "Gestiona series, facturas, impuestos y cupones de descuento.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { factura?: string } =>
+    search["factura"] ? { factura: String(search["factura"]) } : {},
   component: FacturacionPage,
 });
 
 function FacturacionPage() {
   const qc = useQueryClient();
+  const { factura } = Route.useSearch();
   const { data: invoices = [], isLoading } = useQuery(invoicesQuery);
   const { data: series = [] } = useQuery(seriesQuery);
   const { data: coupons = [] } = useQuery(couponsQuery);
@@ -102,6 +107,14 @@ function FacturacionPage() {
   const [editingSerie, setEditingSerie] = useState<Payload | null>(null);
   const [couponOpen, setCouponOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Payload | null>(null);
+  const [anulando, setAnulando] = useState<InvoiceRow | null>(null);
+
+  /** Acceso directo desde el dashboard: /facturacion?factura=<id>. */
+  useEffect(() => {
+    if (!factura || invoices.length === 0) return;
+    const match = invoices.find((i) => i.id === factura);
+    if (match) setSelected(match);
+  }, [factura, invoices]);
 
   const invoiceCrud = useCrud("invoices", {
     modulo: "facturacion",
