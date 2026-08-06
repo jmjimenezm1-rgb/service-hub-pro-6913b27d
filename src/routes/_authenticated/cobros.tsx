@@ -36,6 +36,7 @@ import {
 } from "@/modules/facturacion/logic";
 import { clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
+import { nextCode } from "@/lib/numbering";
 import { money, fecha, label } from "@/lib/format";
 
 
