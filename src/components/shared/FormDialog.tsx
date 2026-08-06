@@ -31,7 +31,8 @@ export interface FieldOption {
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "textarea" | "select" | "switch" | undefined;
+  type?: "text" | "number" | "date" | "textarea" | "select" | "switch" | "file" | undefined;
+  accept?: string | undefined;
   options?: FieldOption[] | undefined;
   required?: boolean | undefined;
   placeholder?: string | undefined;
@@ -58,6 +59,7 @@ function seed(fields: Field[], initial?: Payload | null): Payload {
   for (const f of fields) {
     const raw = initial?.[f.name];
     if (f.type === "switch") values[f.name] = Boolean(raw);
+    else if (f.type === "file") values[f.name] = null;
     else values[f.name] = raw === null || raw === undefined ? "" : String(raw);
   }
   return values;
@@ -102,6 +104,7 @@ export function FormDialog({
     for (const f of fields) {
       const raw = values[f.name];
       if (f.type === "switch") parsed[f.name] = Boolean(raw);
+      else if (f.type === "file") parsed[f.name] = raw ?? null;
       else if (f.type === "number") parsed[f.name] = raw === "" ? null : Number(raw);
       else parsed[f.name] = raw === "" ? null : raw;
     }
@@ -160,6 +163,14 @@ export function FormDialog({
                       onCheckedChange={(v) => set(field.name, v)}
                     />
                   </div>
+                ) : field.type === "file" ? (
+                  <Input
+                    id={field.name}
+                    type="file"
+                    accept={field.accept}
+                    className="cursor-pointer file:mr-3 file:text-sm file:text-muted-foreground"
+                    onChange={(e) => set(field.name, e.target.files?.[0] ?? null)}
+                  />
                 ) : (
                   <Input
                     id={field.name}

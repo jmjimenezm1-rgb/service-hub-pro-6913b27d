@@ -16,7 +16,8 @@ export type CrudTable =
   | "journal_lines"
   | "documents"
   | "tickets"
-  | "ticket_comments";
+  | "ticket_comments"
+  | "numbering_patterns";
 
 interface CrudOptions {
   /** Módulo funcional, usado en el registro de auditoría. */

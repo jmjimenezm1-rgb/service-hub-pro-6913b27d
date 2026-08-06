@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Ban,
   BookOpen,
+  Download,
+  FileDown,
   FileText,
   Percent,
   Plus,
@@ -45,13 +47,27 @@ import {
   type InvoiceRow,
 } from "@/modules/facturacion/api";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  anularFactura,
   createRectificativa,
   postInvoiceToLedger,
+  requiereRectificativa,
   syncInvoicePayments,
 } from "@/modules/facturacion/logic";
 import { applicationsQuery, clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
-import { money, fecha, pct, label } from "@/lib/format";
+import { generateInvoicePdf, openStoredFile } from "@/lib/invoice-pdf";
+import { supabase } from "@/integrations/supabase/client";
+import { money, fecha, pct, label, bytes } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/facturacion")({
   head: () => ({
@@ -67,13 +83,18 @@ export const Route = createFileRoute("/_authenticated/facturacion")({
         property: "og:description",
         content: "Gestiona series, facturas, impuestos y cupones de descuento.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { factura?: string } =>
+    search["factura"] ? { factura: String(search["factura"]) } : {},
   component: FacturacionPage,
 });
 
 function FacturacionPage() {
   const qc = useQueryClient();
+  const { factura } = Route.useSearch();
   const { data: invoices = [], isLoading } = useQuery(invoicesQuery);
   const { data: series = [] } = useQuery(seriesQuery);
   const { data: coupons = [] } = useQuery(couponsQuery);
@@ -86,6 +107,14 @@ function FacturacionPage() {
   const [editingSerie, setEditingSerie] = useState<Payload | null>(null);
   const [couponOpen, setCouponOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Payload | null>(null);
+  const [anulando, setAnulando] = useState<InvoiceRow | null>(null);
+
+  /** Acceso directo desde el dashboard: /facturacion?factura=<id>. */
+  useEffect(() => {
+    if (!factura || invoices.length === 0) return;
+    const match = invoices.find((i) => i.id === factura);
+    if (match) setSelected(match);
+  }, [factura, invoices]);
 
   const invoiceCrud = useCrud("invoices", {
     modulo: "facturacion",
@@ -185,11 +214,50 @@ function FacturacionPage() {
 
   const rectificar = async (r: InvoiceRow) => {
     try {
-      const numero = await createRectificativa(r.id);
+      const { numero } = await createRectificativa(r.id);
       toast.success(`Rectificativa ${numero} creada en borrador`);
       void qc.invalidateQueries({ queryKey: ["facturacion"] });
     } catch (e) {
       toast.error((e as Error).message);
+    }
+  };
+
+  /** Anula la factura; con rectificativa cuando ya ha surtido efectos. */
+  const anular = async (r: InvoiceRow, conRectificativa: boolean) => {
+    try {
+      const res = await anularFactura(r.id, { conRectificativa });
+      const partes = [
+        res.rectificativa ? `rectificativa ${res.rectificativa}` : null,
+        res.asientoReverso ? `asiento de reverso ${res.asientoReverso}` : null,
+        res.cobrosDevueltos ? `${res.cobrosDevueltos} cobro(s) marcados como devueltos` : null,
+        res.cobrosCancelados ? `${res.cobrosCancelados} cobro(s) cancelados` : null,
+      ].filter(Boolean);
+      toast.success(
+        `Factura ${r.numero} anulada${partes.length ? `: ${partes.join(", ")}` : ""}`,
+      );
+      void qc.invalidateQueries({ queryKey: ["facturacion"] });
+      void qc.invalidateQueries({ queryKey: ["cobros"] });
+      void qc.invalidateQueries({ queryKey: ["financiero"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["documental"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAnulando(null);
+    }
+  };
+
+  /** Genera el PDF y lo archiva en el módulo documental junto a la factura. */
+  const generarPdf = async (r: InvoiceRow) => {
+    const id = toast.loading(`Generando PDF de ${r.numero}…`);
+    try {
+      const { path } = await generateInvoicePdf(r.id);
+      toast.success(`PDF archivado en documental (${r.numero})`, { id });
+      void qc.invalidateQueries({ queryKey: ["documental"] });
+      void qc.invalidateQueries({ queryKey: ["facturacion", "invoice-docs"] });
+      await openStoredFile(path);
+    } catch (e) {
+      toast.error((e as Error).message, { id });
     }
   };
 
@@ -294,15 +362,20 @@ function FacturacionPage() {
               disabled: r.estado === "borrador" || r.estado === "anulada",
             },
             {
+              label: "Generar PDF y archivar",
+              icon: <FileDown className="h-4 w-4" />,
+              onSelect: () => void generarPdf(r),
+            },
+            {
               label: "Emitir rectificativa",
-              icon: <Ban className="h-4 w-4" />,
+              icon: <RotateCcw className="h-4 w-4" />,
               onSelect: () => void rectificar(r),
               disabled: r.tipo !== "ordinaria",
             },
             {
               label: "Anular factura",
               icon: <Ban className="h-4 w-4" />,
-              onSelect: () => invoiceCrud.update.mutate({ id: r.id, values: { estado: "anulada" } }),
+              onSelect: () => setAnulando(r),
               disabled: r.estado === "anulada",
             },
           ]}
@@ -500,6 +573,62 @@ function FacturacionPage() {
 
       <InvoiceSheet invoice={selected} onClose={() => setSelected(null)} />
 
+      <AlertDialog open={Boolean(anulando)} onOpenChange={(o) => !o && setAnulando(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anular la factura {anulando?.numero}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              {anulando && requiereRectificativa(anulando.estado) ? (
+                <div className="space-y-2 text-sm">
+                  <p>
+                    Esta factura ya está <strong>{label(anulando.estado)}</strong>
+                    {Number(anulando.pagado) > 0
+                      ? ` y tiene ${money(Number(anulando.pagado))} cobrados`
+                      : ""}
+                    , por lo que la normativa exige emitir una{" "}
+                    <strong>factura rectificativa</strong> en lugar de eliminarla sin más.
+                  </p>
+                  <p>Si continúas con rectificativa, ServiceHub:</p>
+                  <ul className="list-disc pl-5">
+                    <li>Emite una rectificativa en borrador con los importes en negativo.</li>
+                    <li>Genera el asiento inverso del asiento contable de la factura.</li>
+                    <li>Marca los cobros cobrados como devueltos y cancela los pendientes.</li>
+                    <li>Deja la factura original en estado «anulada» con saldo cero.</li>
+                  </ul>
+                </div>
+              ) : (
+                <span>
+                  La factura está en borrador y no ha surtido efectos: puede anularse
+                  directamente sin emitir rectificativa.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {anulando && requiereRectificativa(anulando.estado) ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => anulando && void anular(anulando, false)}
+                >
+                  Anular sin rectificativa
+                </Button>
+                <AlertDialogAction onClick={() => anulando && void anular(anulando, true)}>
+                  Anular y emitir rectificativa
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction onClick={() => anulando && void anular(anulando, false)}>
+                Anular factura
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
+
       <FormDialog
         open={invoiceOpen}
         onOpenChange={(o) => {
@@ -607,6 +736,38 @@ function InvoiceSheet({ invoice, onClose }: { invoice: InvoiceRow | null; onClos
     enabled: Boolean(invoice),
   });
 
+  const { data: docs = [] } = useQuery({
+    queryKey: ["facturacion", "invoice-docs", invoice?.id ?? ""],
+    enabled: Boolean(invoice),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, nombre, storage_path, tamano_bytes, version, created_at")
+        .eq("invoice_id", invoice?.id ?? "")
+        .is("deleted_at", null)
+        .order("version", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const generar = async () => {
+    if (!invoice) return;
+    setPdfBusy(true);
+    try {
+      const { path } = await generateInvoicePdf(invoice.id);
+      toast.success("PDF generado y archivado junto a la factura");
+      void qc.invalidateQueries({ queryKey: ["facturacion", "invoice-docs"] });
+      void qc.invalidateQueries({ queryKey: ["documental"] });
+      await openStoredFile(path);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const lineCrud = useCrud("invoice_lines", {
     modulo: "facturacion",
     entidad: "Línea",
@@ -691,7 +852,48 @@ function InvoiceSheet({ invoice, onClose }: { invoice: InvoiceRow | null; onClos
                   strong
                 />
               </dl>
+
+              <div className="space-y-2 border-t border-border pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Documentos de la factura</h3>
+                  <Button size="sm" variant="outline" onClick={() => void generar()} disabled={pdfBusy}>
+                    <FileDown className="mr-1.5 h-4 w-4" />
+                    {pdfBusy ? "Generando…" : "Generar PDF"}
+                  </Button>
+                </div>
+                {docs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Todavía no hay documentos archivados para esta factura.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {docs.map((d) => (
+                      <li
+                        key={d.id}
+                        className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{d.nombre}</span>
+                          <span className="text-xs text-muted-foreground">
+                            v{d.version} · {fecha(d.created_at)}
+                            {d.tamano_bytes ? ` · ${bytes(Number(d.tamano_bytes))}` : ""}
+                          </span>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={!d.storage_path}
+                          onClick={() => void openStoredFile(d.storage_path ?? "")}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
+
 
             <FormDialog
               open={lineOpen}

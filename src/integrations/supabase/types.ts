@@ -796,6 +796,54 @@ export type Database = {
           },
         ]
       }
+      numbering_patterns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          entidad: string
+          estado: Database["public"]["Enums"]["record_status"]
+          id: string
+          nombre: string
+          patron: string
+          periodo_actual: string | null
+          proximo_numero: number
+          reinicio: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entidad: string
+          estado?: Database["public"]["Enums"]["record_status"]
+          id?: string
+          nombre: string
+          patron: string
+          periodo_actual?: string | null
+          proximo_numero?: number
+          reinicio?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entidad?: string
+          estado?: Database["public"]["Enums"]["record_status"]
+          id?: string
+          nombre?: string
+          patron?: string
+          periodo_actual?: string | null
+          proximo_numero?: number
+          reinicio?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           aviso_enviado: boolean

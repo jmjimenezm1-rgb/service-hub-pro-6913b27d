@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { FolderKanban, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -260,6 +261,13 @@ function DocumentalPage() {
             type: "select",
             options: invoices.map((i) => ({ value: i.id, label: i.numero })),
           },
+          {
+            name: "archivo",
+            label: "Archivo adjunto",
+            type: "file",
+            full: true,
+            help: "El archivo se almacena de forma privada y queda asociado a esta línea documental.",
+          },
           { name: "storage_path", label: "Ruta / enlace", full: true },
           { name: "mime_type", label: "Tipo MIME", placeholder: "application/pdf" },
           { name: "tamano_bytes", label: "Tamaño (bytes)", type: "number" },
@@ -269,8 +277,30 @@ function DocumentalPage() {
         initial={editing ?? { version: 1, estado: "activo" }}
         submitting={crud.saving}
         onSubmit={async (values) => {
-          if (editing) await crud.update.mutateAsync({ id: String(editing["id"]), values });
-          else await crud.create.mutateAsync(values);
+          const { archivo, ...rest } = values as Payload & { archivo?: unknown };
+          const payload: Payload = { ...rest };
+
+          if (archivo instanceof File) {
+            const safe = archivo.name.replace(/[^\w.-]/g, "_");
+            const path = `adjuntos/${Date.now()}-${safe}`;
+            const { error } = await supabase.storage
+              .from("documentos")
+              .upload(path, archivo, {
+                contentType: archivo.type || "application/octet-stream",
+                upsert: true,
+              });
+            if (error) {
+              toast.error(`No se pudo subir el archivo: ${error.message}`);
+              return;
+            }
+            payload["storage_path"] = path;
+            payload["mime_type"] = archivo.type || null;
+            payload["tamano_bytes"] = archivo.size;
+            if (!payload["nombre"]) payload["nombre"] = archivo.name;
+          }
+
+          if (editing) await crud.update.mutateAsync({ id: String(editing["id"]), values: payload });
+          else await crud.create.mutateAsync(payload);
           setOpen(false);
           setEditing(null);
         }}

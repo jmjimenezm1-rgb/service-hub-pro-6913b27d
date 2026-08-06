@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { nextCode } from "@/lib/numbering";
 
 export interface InvoiceRow {
   id: string;
@@ -119,7 +120,11 @@ export const couponsQuery = queryOptions({
   },
 });
 
-/** Reserva el siguiente número de una serie y devuelve el número formateado. */
+/**
+ * Devuelve el siguiente número de factura. Si existe un patrón de
+ * numeración activo en parametrización, se usa ese patrón (con {SERIE}
+ * sustituido por el prefijo de la serie); si no, se usa el contador de la serie.
+ */
 export async function nextInvoiceNumber(serieId: string): Promise<string> {
   const { data, error } = await supabase
     .from("invoice_series")
@@ -127,6 +132,9 @@ export async function nextInvoiceNumber(serieId: string): Promise<string> {
     .eq("id", serieId)
     .single();
   if (error) throw error;
+
+  const fromPattern = await nextCode("factura", { serie: data.prefijo });
+  if (fromPattern) return fromPattern;
 
   const numero = `${data.prefijo}-${data.ejercicio}-${String(data.proximo_numero).padStart(4, "0")}`;
   const { error: upErr } = await supabase

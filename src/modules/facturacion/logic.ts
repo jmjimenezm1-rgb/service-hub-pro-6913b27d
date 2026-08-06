@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/audit";
+import { nextCode } from "@/lib/numbering";
 
 const round = (n: number) => Math.round(n * 100) / 100;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -237,7 +238,9 @@ export async function postPaymentToLedger(paymentId: string): Promise<string> {
  * Genera una factura rectificativa (abono) con los importes negativos
  * de la factura original y copia sus líneas invertidas.
  */
-export async function createRectificativa(invoiceId: string): Promise<string> {
+export async function createRectificativa(
+  invoiceId: string,
+): Promise<{ id: string; numero: string }> {
   const { data: inv, error } = await supabase
     .from("invoices")
     .select("*")
@@ -245,19 +248,22 @@ export async function createRectificativa(invoiceId: string): Promise<string> {
     .single();
   if (error) throw error;
 
-  let numero = `R-${inv.numero}`;
-  if (inv.serie_id) {
-    const { data: serie } = await supabase
-      .from("invoice_series")
-      .select("prefijo, proximo_numero, ejercicio")
-      .eq("id", inv.serie_id)
-      .maybeSingle();
-    if (serie) {
-      numero = `R${serie.prefijo}-${serie.ejercicio}-${String(serie.proximo_numero).padStart(4, "0")}`;
-      await supabase
+  let numero = (await nextCode("rectificativa")) ?? "";
+  if (!numero) {
+    numero = `R-${inv.numero}`;
+    if (inv.serie_id) {
+      const { data: serie } = await supabase
         .from("invoice_series")
-        .update({ proximo_numero: serie.proximo_numero + 1 })
-        .eq("id", inv.serie_id);
+        .select("prefijo, proximo_numero, ejercicio")
+        .eq("id", inv.serie_id)
+        .maybeSingle();
+      if (serie) {
+        numero = `R${serie.prefijo}-${serie.ejercicio}-${String(serie.proximo_numero).padStart(4, "0")}`;
+        await supabase
+          .from("invoice_series")
+          .update({ proximo_numero: serie.proximo_numero + 1 })
+          .eq("id", inv.serie_id);
+      }
     }
   }
 
@@ -319,5 +325,180 @@ export async function createRectificativa(invoiceId: string): Promise<string> {
     valorNuevo: { numero, rectifica: inv.numero },
   });
 
+  return { id: nueva.id, numero };
+}
+
+/** ¿Está la factura contabilizada? Devuelve el número de asiento si lo está. */
+export async function ledgerEntryOf(invoiceId: string): Promise<{ id: string; numero: string } | null> {
+  const { data } = await supabase
+    .from("journal_entries")
+    .select("id, numero")
+    .eq("invoice_id", invoiceId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/**
+ * Genera el asiento inverso (contra-asiento) de una factura contabilizada,
+ * imprescindible al anular o rectificar una factura ya emitida.
+ */
+export async function reverseInvoiceLedger(
+  invoiceId: string,
+  targetInvoiceId?: string,
+): Promise<string | null> {
+  const origen = await ledgerEntryOf(invoiceId);
+  if (!origen) return null;
+
+  const { data: lines, error } = await supabase
+    .from("journal_lines")
+    .select("account_id, descripcion, debe, haber")
+    .eq("entry_id", origen.id)
+    .is("deleted_at", null);
+  if (error) throw error;
+  if (!lines?.length) return null;
+
+  const fecha = today();
+  const ejercicio = Number(fecha.slice(0, 4));
+  const numero = await nextEntryNumber(ejercicio);
+
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id ?? null;
+
+  const { data: entry, error: entryErr } = await supabase
+    .from("journal_entries")
+    .insert({
+      numero,
+      fecha,
+      ejercicio,
+      concepto: `Anulación / rectificación del asiento ${origen.numero}`,
+      invoice_id: targetInvoiceId ?? invoiceId,
+      estado: "activo",
+      created_by: uid,
+      updated_by: uid,
+    })
+    .select("id")
+    .single();
+  if (entryErr) throw entryErr;
+
+  const { error: linesErr } = await supabase.from("journal_lines").insert(
+    lines.map((l) => ({
+      entry_id: entry.id,
+      account_id: l.account_id,
+      descripcion: `Reverso · ${l.descripcion ?? ""}`.trim(),
+      debe: Number(l.haber),
+      haber: Number(l.debe),
+      created_by: uid,
+      updated_by: uid,
+    })),
+  );
+  if (linesErr) throw linesErr;
+
+  await logAudit({
+    modulo: "financiero",
+    entidad: "journal_entries",
+    entidadId: entry.id,
+    accion: "insert",
+    valorNuevo: { numero, reverso_de: origen.numero },
+  });
+
   return numero;
+}
+
+export interface AnulacionResult {
+  rectificativa: string | null;
+  asientoReverso: string | null;
+  cobrosCancelados: number;
+  cobrosDevueltos: number;
+}
+
+/** Estados en los que la factura ya ha surtido efectos y exige rectificativa. */
+export function requiereRectificativa(estado: string): boolean {
+  return ["emitida", "enviada", "pagada", "parcial", "vencida"].includes(estado);
+}
+
+/**
+ * Anula una factura. Si ya estaba emitida o cobrada, emite además una
+ * factura rectificativa, revierte el asiento contable y regulariza los cobros:
+ * los pendientes se cancelan y los cobrados se marcan como devueltos.
+ */
+export async function anularFactura(
+  invoiceId: string,
+  opts: { conRectificativa: boolean },
+): Promise<AnulacionResult> {
+  const { data: inv, error } = await supabase
+    .from("invoices")
+    .select("id, numero, estado")
+    .eq("id", invoiceId)
+    .single();
+  if (error) throw error;
+  if (inv.estado === "anulada") throw new Error("La factura ya está anulada.");
+
+  const result: AnulacionResult = {
+    rectificativa: null,
+    asientoReverso: null,
+    cobrosCancelados: 0,
+    cobrosDevueltos: 0,
+  };
+
+  if (opts.conRectificativa) {
+    const rect = await createRectificativa(invoiceId);
+    result.rectificativa = rect.numero;
+    result.asientoReverso = await reverseInvoiceLedger(invoiceId, rect.id);
+  } else {
+    result.asientoReverso = await reverseInvoiceLedger(invoiceId);
+  }
+
+  const { data: pays, error: payErr } = await supabase
+    .from("payments")
+    .select("id, estado")
+    .eq("invoice_id", invoiceId)
+    .is("deleted_at", null);
+  if (payErr) throw payErr;
+
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id ?? null;
+
+  for (const p of pays ?? []) {
+    if (p.estado === "cobrado") {
+      const { error: e } = await supabase
+        .from("payments")
+        .update({
+          estado: "devuelto",
+          fecha_devolucion: today(),
+          observaciones: `Devolución por anulación de la factura ${inv.numero}`,
+          updated_by: uid,
+        })
+        .eq("id", p.id);
+      if (e) throw e;
+      result.cobrosDevueltos += 1;
+    } else if (p.estado === "pendiente" || p.estado === "impagado") {
+      const { error: e } = await supabase
+        .from("payments")
+        .update({
+          estado: "cancelado",
+          observaciones: `Cancelado por anulación de la factura ${inv.numero}`,
+          updated_by: uid,
+        })
+        .eq("id", p.id);
+      if (e) throw e;
+      result.cobrosCancelados += 1;
+    }
+  }
+
+  const { error: upErr } = await supabase
+    .from("invoices")
+    .update({ estado: "anulada", pagado: 0, updated_by: uid })
+    .eq("id", invoiceId);
+  if (upErr) throw upErr;
+
+  await logAudit({
+    modulo: "facturacion",
+    entidad: "invoices",
+    entidadId: invoiceId,
+    accion: "update",
+    valorNuevo: { estado: "anulada", ...result },
+  });
+
+  return result;
 }

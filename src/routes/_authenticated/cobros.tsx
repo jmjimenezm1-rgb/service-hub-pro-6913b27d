@@ -36,6 +36,7 @@ import {
 } from "@/modules/facturacion/logic";
 import { clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
+import { nextCode } from "@/lib/numbering";
 import { money, fecha, label } from "@/lib/format";
 
 
@@ -85,7 +86,10 @@ function CobrosPage() {
     }
   };
 
-  const nextRef = () => {
+  /** Referencia automática según el patrón parametrizado (con respaldo local). */
+  const nextRef = async () => {
+    const fromPattern = await nextCode("cobro");
+    if (fromPattern) return fromPattern;
     const year = new Date().getFullYear();
     const n = payments.filter((p) => p.referencia.includes(String(year))).length + 1;
     return `COB-${year}-${String(n).padStart(4, "0")}`;
@@ -93,7 +97,12 @@ function CobrosPage() {
 
   const fields: Field[] = useMemo(
     () => [
-      { name: "referencia", label: "Referencia", required: true, placeholder: "COB-2026-0001" },
+      {
+        name: "referencia",
+        label: "Referencia",
+        placeholder: "Se genera automáticamente",
+        help: "Si lo dejas vacío se genera con el patrón definido en Parametrización.",
+      },
       {
         name: "client_id",
         label: "Cliente",
@@ -143,7 +152,8 @@ function CobrosPage() {
       if (values["invoice_id"] && values["invoice_id"] !== editing.invoice_id)
         await sync(String(values["invoice_id"]));
     } else {
-      await crud.create.mutateAsync(values);
+      const referencia = values["referencia"] ? String(values["referencia"]) : await nextRef();
+      await crud.create.mutateAsync({ ...values, referencia });
       await sync(values["invoice_id"] ? String(values["invoice_id"]) : null);
     }
     setOpen(false);
