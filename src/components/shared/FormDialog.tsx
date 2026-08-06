@@ -31,7 +31,8 @@ export interface FieldOption {
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "textarea" | "select" | "switch" | undefined;
+  type?: "text" | "number" | "date" | "textarea" | "select" | "switch" | "file" | undefined;
+  accept?: string | undefined;
   options?: FieldOption[] | undefined;
   required?: boolean | undefined;
   placeholder?: string | undefined;
