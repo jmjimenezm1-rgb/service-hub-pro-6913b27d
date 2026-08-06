@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/audit";
+import { nextCode } from "@/lib/numbering";
 
 const round = (n: number) => Math.round(n * 100) / 100;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -245,19 +246,22 @@ export async function createRectificativa(invoiceId: string): Promise<string> {
     .single();
   if (error) throw error;
 
-  let numero = `R-${inv.numero}`;
-  if (inv.serie_id) {
-    const { data: serie } = await supabase
-      .from("invoice_series")
-      .select("prefijo, proximo_numero, ejercicio")
-      .eq("id", inv.serie_id)
-      .maybeSingle();
-    if (serie) {
-      numero = `R${serie.prefijo}-${serie.ejercicio}-${String(serie.proximo_numero).padStart(4, "0")}`;
-      await supabase
+  let numero = (await nextCode("rectificativa")) ?? "";
+  if (!numero) {
+    numero = `R-${inv.numero}`;
+    if (inv.serie_id) {
+      const { data: serie } = await supabase
         .from("invoice_series")
-        .update({ proximo_numero: serie.proximo_numero + 1 })
-        .eq("id", inv.serie_id);
+        .select("prefijo, proximo_numero, ejercicio")
+        .eq("id", inv.serie_id)
+        .maybeSingle();
+      if (serie) {
+        numero = `R${serie.prefijo}-${serie.ejercicio}-${String(serie.proximo_numero).padStart(4, "0")}`;
+        await supabase
+          .from("invoice_series")
+          .update({ proximo_numero: serie.proximo_numero + 1 })
+          .eq("id", inv.serie_id);
+      }
     }
   }
 

@@ -17,6 +17,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDocumentalRouteImport } from './routes/_authenticated/documental'
 import { Route as AuthenticatedFacturacionRouteImport } from './routes/_authenticated/facturacion'
 import { Route as AuthenticatedFinancieroRouteImport } from './routes/_authenticated/financiero'
+import { Route as AuthenticatedParametrizacionRouteImport } from './routes/_authenticated/parametrizacion'
 import { Route as AuthenticatedSoporteRouteImport } from './routes/_authenticated/soporte'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +60,12 @@ const AuthenticatedFinancieroRoute = AuthenticatedFinancieroRouteImport.update({
   path: '/financiero',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedParametrizacionRoute =
+  AuthenticatedParametrizacionRouteImport.update({
+    id: '/parametrizacion',
+    path: '/parametrizacion',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSoporteRoute = AuthenticatedSoporteRouteImport.update({
   id: '/soporte',
   path: '/soporte',
@@ -73,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/documental': typeof AuthenticatedDocumentalRoute
   '/facturacion': typeof AuthenticatedFacturacionRoute
   '/financiero': typeof AuthenticatedFinancieroRoute
+  '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
 }
 export interface FileRoutesByTo {
@@ -83,6 +91,7 @@ export interface FileRoutesByTo {
   '/documental': typeof AuthenticatedDocumentalRoute
   '/facturacion': typeof AuthenticatedFacturacionRoute
   '/financiero': typeof AuthenticatedFinancieroRoute
+  '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
 }
 export interface FileRoutesById {
@@ -95,6 +104,7 @@ export interface FileRoutesById {
   '/_authenticated/documental': typeof AuthenticatedDocumentalRoute
   '/_authenticated/facturacion': typeof AuthenticatedFacturacionRoute
   '/_authenticated/financiero': typeof AuthenticatedFinancieroRoute
+  '/_authenticated/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/_authenticated/soporte': typeof AuthenticatedSoporteRoute
 }
 export interface FileRouteTypes {
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/documental'
     | '/facturacion'
     | '/financiero'
+    | '/parametrizacion'
     | '/soporte'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/documental'
     | '/facturacion'
     | '/financiero'
+    | '/parametrizacion'
     | '/soporte'
   id:
     | '__root__'
@@ -128,6 +140,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documental'
     | '/_authenticated/facturacion'
     | '/_authenticated/financiero'
+    | '/_authenticated/parametrizacion'
     | '/_authenticated/soporte'
   fileRoutesById: FileRoutesById
 }
@@ -195,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFinancieroRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/parametrizacion': {
+      id: '/_authenticated/parametrizacion'
+      path: '/parametrizacion'
+      fullPath: '/parametrizacion'
+      preLoaderRoute: typeof AuthenticatedParametrizacionRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/soporte': {
       id: '/_authenticated/soporte'
       path: '/soporte'
@@ -211,6 +231,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDocumentalRoute: typeof AuthenticatedDocumentalRoute
   AuthenticatedFacturacionRoute: typeof AuthenticatedFacturacionRoute
   AuthenticatedFinancieroRoute: typeof AuthenticatedFinancieroRoute
+  AuthenticatedParametrizacionRoute: typeof AuthenticatedParametrizacionRoute
   AuthenticatedSoporteRoute: typeof AuthenticatedSoporteRoute
 }
 
@@ -220,6 +241,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDocumentalRoute: AuthenticatedDocumentalRoute,
   AuthenticatedFacturacionRoute: AuthenticatedFacturacionRoute,
   AuthenticatedFinancieroRoute: AuthenticatedFinancieroRoute,
+  AuthenticatedParametrizacionRoute: AuthenticatedParametrizacionRoute,
   AuthenticatedSoporteRoute: AuthenticatedSoporteRoute,
 }
 
@@ -234,13 +256,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
