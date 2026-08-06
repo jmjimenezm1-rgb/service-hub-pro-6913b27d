@@ -238,7 +238,9 @@ export async function postPaymentToLedger(paymentId: string): Promise<string> {
  * Genera una factura rectificativa (abono) con los importes negativos
  * de la factura original y copia sus líneas invertidas.
  */
-export async function createRectificativa(invoiceId: string): Promise<string> {
+export async function createRectificativa(
+  invoiceId: string,
+): Promise<{ id: string; numero: string }> {
   const { data: inv, error } = await supabase
     .from("invoices")
     .select("*")
