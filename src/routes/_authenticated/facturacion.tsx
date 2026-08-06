@@ -573,6 +573,62 @@ function FacturacionPage() {
 
       <InvoiceSheet invoice={selected} onClose={() => setSelected(null)} />
 
+      <AlertDialog open={Boolean(anulando)} onOpenChange={(o) => !o && setAnulando(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anular la factura {anulando?.numero}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              {anulando && requiereRectificativa(anulando.estado) ? (
+                <div className="space-y-2 text-sm">
+                  <p>
+                    Esta factura ya está <strong>{label(anulando.estado)}</strong>
+                    {Number(anulando.pagado) > 0
+                      ? ` y tiene ${money(Number(anulando.pagado))} cobrados`
+                      : ""}
+                    , por lo que la normativa exige emitir una{" "}
+                    <strong>factura rectificativa</strong> en lugar de eliminarla sin más.
+                  </p>
+                  <p>Si continúas con rectificativa, ServiceHub:</p>
+                  <ul className="list-disc pl-5">
+                    <li>Emite una rectificativa en borrador con los importes en negativo.</li>
+                    <li>Genera el asiento inverso del asiento contable de la factura.</li>
+                    <li>Marca los cobros cobrados como devueltos y cancela los pendientes.</li>
+                    <li>Deja la factura original en estado «anulada» con saldo cero.</li>
+                  </ul>
+                </div>
+              ) : (
+                <span>
+                  La factura está en borrador y no ha surtido efectos: puede anularse
+                  directamente sin emitir rectificativa.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {anulando && requiereRectificativa(anulando.estado) ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => anulando && void anular(anulando, false)}
+                >
+                  Anular sin rectificativa
+                </Button>
+                <AlertDialogAction onClick={() => anulando && void anular(anulando, true)}>
+                  Anular y emitir rectificativa
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction onClick={() => anulando && void anular(anulando, false)}>
+                Anular factura
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
+
       <FormDialog
         open={invoiceOpen}
         onOpenChange={(o) => {
