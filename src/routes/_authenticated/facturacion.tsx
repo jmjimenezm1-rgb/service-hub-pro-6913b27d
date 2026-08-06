@@ -736,6 +736,38 @@ function InvoiceSheet({ invoice, onClose }: { invoice: InvoiceRow | null; onClos
     enabled: Boolean(invoice),
   });
 
+  const { data: docs = [] } = useQuery({
+    queryKey: ["facturacion", "invoice-docs", invoice?.id ?? ""],
+    enabled: Boolean(invoice),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, nombre, storage_path, tamano_bytes, version, created_at")
+        .eq("invoice_id", invoice?.id ?? "")
+        .is("deleted_at", null)
+        .order("version", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const generar = async () => {
+    if (!invoice) return;
+    setPdfBusy(true);
+    try {
+      const { path } = await generateInvoicePdf(invoice.id);
+      toast.success("PDF generado y archivado junto a la factura");
+      void qc.invalidateQueries({ queryKey: ["facturacion", "invoice-docs"] });
+      void qc.invalidateQueries({ queryKey: ["documental"] });
+      await openStoredFile(path);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const lineCrud = useCrud("invoice_lines", {
     modulo: "facturacion",
     entidad: "Línea",
