@@ -184,6 +184,18 @@ export const MODULES: ModuleDefinition[] = [
     roles: STAFF,
   },
   {
+    id: "parametrizacion",
+    numero: 14,
+    nombre: "Parametrización",
+    descripcion: "Patrones de numeración automática de facturas, cobros y documentos.",
+    icon: "Settings2",
+    path: "/parametrizacion",
+    grupo: "Sistema",
+    origen: "local",
+    tablas: ["numbering_patterns"],
+    roles: ["administrador_general", "administrador_financiero"],
+  },
+  {
     id: "auditoria",
     numero: 13,
     nombre: "Auditoría",
