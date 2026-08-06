@@ -59,6 +59,7 @@ function seed(fields: Field[], initial?: Payload | null): Payload {
   for (const f of fields) {
     const raw = initial?.[f.name];
     if (f.type === "switch") values[f.name] = Boolean(raw);
+    else if (f.type === "file") values[f.name] = null;
     else values[f.name] = raw === null || raw === undefined ? "" : String(raw);
   }
   return values;
