@@ -97,7 +97,12 @@ function CobrosPage() {
 
   const fields: Field[] = useMemo(
     () => [
-      { name: "referencia", label: "Referencia", required: true, placeholder: "COB-2026-0001" },
+      {
+        name: "referencia",
+        label: "Referencia",
+        placeholder: "Se genera automáticamente",
+        help: "Si lo dejas vacío se genera con el patrón definido en Parametrización.",
+      },
       {
         name: "client_id",
         label: "Cliente",
