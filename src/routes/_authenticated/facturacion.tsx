@@ -214,11 +214,50 @@ function FacturacionPage() {
 
   const rectificar = async (r: InvoiceRow) => {
     try {
-      const numero = await createRectificativa(r.id);
+      const { numero } = await createRectificativa(r.id);
       toast.success(`Rectificativa ${numero} creada en borrador`);
       void qc.invalidateQueries({ queryKey: ["facturacion"] });
     } catch (e) {
       toast.error((e as Error).message);
+    }
+  };
+
+  /** Anula la factura; con rectificativa cuando ya ha surtido efectos. */
+  const anular = async (r: InvoiceRow, conRectificativa: boolean) => {
+    try {
+      const res = await anularFactura(r.id, { conRectificativa });
+      const partes = [
+        res.rectificativa ? `rectificativa ${res.rectificativa}` : null,
+        res.asientoReverso ? `asiento de reverso ${res.asientoReverso}` : null,
+        res.cobrosDevueltos ? `${res.cobrosDevueltos} cobro(s) marcados como devueltos` : null,
+        res.cobrosCancelados ? `${res.cobrosCancelados} cobro(s) cancelados` : null,
+      ].filter(Boolean);
+      toast.success(
+        `Factura ${r.numero} anulada${partes.length ? `: ${partes.join(", ")}` : ""}`,
+      );
+      void qc.invalidateQueries({ queryKey: ["facturacion"] });
+      void qc.invalidateQueries({ queryKey: ["cobros"] });
+      void qc.invalidateQueries({ queryKey: ["financiero"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["documental"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAnulando(null);
+    }
+  };
+
+  /** Genera el PDF y lo archiva en el módulo documental junto a la factura. */
+  const generarPdf = async (r: InvoiceRow) => {
+    const id = toast.loading(`Generando PDF de ${r.numero}…`);
+    try {
+      const { path } = await generateInvoicePdf(r.id);
+      toast.success(`PDF archivado en documental (${r.numero})`, { id });
+      void qc.invalidateQueries({ queryKey: ["documental"] });
+      void qc.invalidateQueries({ queryKey: ["facturacion", "invoice-docs"] });
+      await openStoredFile(path);
+    } catch (e) {
+      toast.error((e as Error).message, { id });
     }
   };
 
