@@ -19,6 +19,7 @@ import { Route as AuthenticatedFacturacionRouteImport } from './routes/_authenti
 import { Route as AuthenticatedFinancieroRouteImport } from './routes/_authenticated/financiero'
 import { Route as AuthenticatedParametrizacionRouteImport } from './routes/_authenticated/parametrizacion'
 import { Route as AuthenticatedSoporteRouteImport } from './routes/_authenticated/soporte'
+import { Route as ApiPublicIpRouteImport } from './routes/api/public/ip'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -71,6 +72,11 @@ const AuthenticatedSoporteRoute = AuthenticatedSoporteRouteImport.update({
   path: '/soporte',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicIpRoute = ApiPublicIpRouteImport.update({
+  id: '/api/public/ip',
+  path: '/api/public/ip',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/financiero': typeof AuthenticatedFinancieroRoute
   '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
+  '/api/public/ip': typeof ApiPublicIpRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/financiero': typeof AuthenticatedFinancieroRoute
   '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
+  '/api/public/ip': typeof ApiPublicIpRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/_authenticated/financiero': typeof AuthenticatedFinancieroRoute
   '/_authenticated/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/_authenticated/soporte': typeof AuthenticatedSoporteRoute
+  '/api/public/ip': typeof ApiPublicIpRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/financiero'
     | '/parametrizacion'
     | '/soporte'
+    | '/api/public/ip'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/financiero'
     | '/parametrizacion'
     | '/soporte'
+    | '/api/public/ip'
   id:
     | '__root__'
     | '/'
@@ -142,12 +153,14 @@ export interface FileRouteTypes {
     | '/_authenticated/financiero'
     | '/_authenticated/parametrizacion'
     | '/_authenticated/soporte'
+    | '/api/public/ip'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicIpRoute: typeof ApiPublicIpRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -222,6 +235,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSoporteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/ip': {
+      id: '/api/public/ip'
+      path: '/api/public/ip'
+      fullPath: '/api/public/ip'
+      preLoaderRoute: typeof ApiPublicIpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -252,6 +272,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicIpRoute: ApiPublicIpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

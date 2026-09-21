@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { logAudit } from "@/lib/audit";
+import { logAudit, snapshot } from "@/lib/audit";
 
 export type CrudTable =
   | "invoices"
@@ -80,17 +80,20 @@ export function useCrud(table: CrudTable, opts: CrudOptions) {
   const update = useMutation({
     mutationFn: async ({ id, values }: { id: string; values: Payload }) => {
       const payload = await withUser(clean(values), false);
+      const antes = await snapshot(table, id);
       const { error } = await supabase
         .from(table)
         .update(payload as never)
         .eq("id", id);
       if (error) throw error;
+      const despues = await snapshot(table, id);
       await logAudit({
         modulo: opts.modulo,
         entidad: table,
         entidadId: id,
         accion: "update",
-        valorNuevo: payload,
+        valorAnterior: antes,
+        valorNuevo: despues ?? payload,
       });
     },
     onSuccess: () => {
