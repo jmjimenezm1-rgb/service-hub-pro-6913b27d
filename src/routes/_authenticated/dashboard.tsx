@@ -153,7 +153,7 @@ function DashboardPage() {
                   <span className="tabular text-sm font-medium">{money(Number(i.total))}</span>
                   <StatusBadge value={i.estado} />
                 </div>
-              </div>
+              </Link>
             ))}
             {data.invoices.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Sin facturas todavía.</p>
@@ -170,9 +170,11 @@ function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {data.tickets.slice(0, 6).map((t) => (
-              <div
+              <Link
                 key={t.id}
-                className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
+                to="/soporte"
+                search={{ ticket: t.id }}
+                className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 transition-colors hover:border-primary/40 hover:bg-accent"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{t.asunto}</p>
