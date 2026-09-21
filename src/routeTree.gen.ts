@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
 import { Route as AuthenticatedCobrosRouteImport } from './routes/_authenticated/cobros'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDocumentalRouteImport } from './routes/_authenticated/documental'
@@ -19,6 +20,7 @@ import { Route as AuthenticatedFacturacionRouteImport } from './routes/_authenti
 import { Route as AuthenticatedFinancieroRouteImport } from './routes/_authenticated/financiero'
 import { Route as AuthenticatedParametrizacionRouteImport } from './routes/_authenticated/parametrizacion'
 import { Route as AuthenticatedSoporteRouteImport } from './routes/_authenticated/soporte'
+import { Route as ApiPublicIpRouteImport } from './routes/api/public/ip'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,6 +35,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCobrosRoute = AuthenticatedCobrosRouteImport.update({
   id: '/cobros',
@@ -71,10 +78,16 @@ const AuthenticatedSoporteRoute = AuthenticatedSoporteRouteImport.update({
   path: '/soporte',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicIpRoute = ApiPublicIpRouteImport.update({
+  id: '/api/public/ip',
+  path: '/api/public/ip',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/cobros': typeof AuthenticatedCobrosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documental': typeof AuthenticatedDocumentalRoute
@@ -82,10 +95,12 @@ export interface FileRoutesByFullPath {
   '/financiero': typeof AuthenticatedFinancieroRoute
   '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
+  '/api/public/ip': typeof ApiPublicIpRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/cobros': typeof AuthenticatedCobrosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documental': typeof AuthenticatedDocumentalRoute
@@ -93,12 +108,14 @@ export interface FileRoutesByTo {
   '/financiero': typeof AuthenticatedFinancieroRoute
   '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
+  '/api/public/ip': typeof ApiPublicIpRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/cobros': typeof AuthenticatedCobrosRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documental': typeof AuthenticatedDocumentalRoute
@@ -106,12 +123,14 @@ export interface FileRoutesById {
   '/_authenticated/financiero': typeof AuthenticatedFinancieroRoute
   '/_authenticated/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/_authenticated/soporte': typeof AuthenticatedSoporteRoute
+  '/api/public/ip': typeof ApiPublicIpRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/auditoria'
     | '/cobros'
     | '/dashboard'
     | '/documental'
@@ -119,10 +138,12 @@ export interface FileRouteTypes {
     | '/financiero'
     | '/parametrizacion'
     | '/soporte'
+    | '/api/public/ip'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/auditoria'
     | '/cobros'
     | '/dashboard'
     | '/documental'
@@ -130,11 +151,13 @@ export interface FileRouteTypes {
     | '/financiero'
     | '/parametrizacion'
     | '/soporte'
+    | '/api/public/ip'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/auditoria'
     | '/_authenticated/cobros'
     | '/_authenticated/dashboard'
     | '/_authenticated/documental'
@@ -142,12 +165,14 @@ export interface FileRouteTypes {
     | '/_authenticated/financiero'
     | '/_authenticated/parametrizacion'
     | '/_authenticated/soporte'
+    | '/api/public/ip'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicIpRoute: typeof ApiPublicIpRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +197,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/auditoria': {
+      id: '/_authenticated/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/cobros': {
       id: '/_authenticated/cobros'
@@ -222,10 +254,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSoporteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/ip': {
+      id: '/api/public/ip'
+      path: '/api/public/ip'
+      fullPath: '/api/public/ip'
+      preLoaderRoute: typeof ApiPublicIpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
   AuthenticatedCobrosRoute: typeof AuthenticatedCobrosRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentalRoute: typeof AuthenticatedDocumentalRoute
@@ -236,6 +276,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
   AuthenticatedCobrosRoute: AuthenticatedCobrosRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentalRoute: AuthenticatedDocumentalRoute,
@@ -252,6 +293,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicIpRoute: ApiPublicIpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
