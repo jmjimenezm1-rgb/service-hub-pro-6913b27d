@@ -89,6 +89,13 @@ function SoportePage() {
     },
   });
 
+  /** Acceso directo desde el dashboard: /soporte?ticket=<id>. */
+  useEffect(() => {
+    if (!ticketParam || tickets.length === 0) return;
+    const match = tickets.find((t) => t.id === ticketParam);
+    if (match) setSelected(match);
+  }, [ticketParam, tickets]);
+
   const { data: clients = [] } = useQuery(clientsQuery);
   const { data: applications = [] } = useQuery(applicationsQuery);
 
