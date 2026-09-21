@@ -106,12 +106,20 @@ export function useCrud(table: CrudTable, opts: CrudOptions) {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const { data } = await supabase.auth.getUser();
+      const antes = await snapshot(table, id);
       const { error } = await supabase
         .from(table)
         .update({ deleted_at: new Date().toISOString(), updated_by: data.user?.id ?? null } as never)
         .eq("id", id);
       if (error) throw error;
-      await logAudit({ modulo: opts.modulo, entidad: table, entidadId: id, accion: "delete" });
+      await logAudit({
+        modulo: opts.modulo,
+        entidad: table,
+        entidadId: id,
+        accion: "delete",
+        valorAnterior: antes,
+        valorNuevo: await snapshot(table, id),
+      });
     },
     onSuccess: () => {
       toast.success(`${opts.entidad} eliminada`);
