@@ -63,10 +63,13 @@ export const Route = createFileRoute("/_authenticated/soporte")({
       },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { ticket?: string } =>
+    search["ticket"] ? { ticket: String(search["ticket"]) } : {},
   component: SoportePage,
 });
 
 function SoportePage() {
+  const { ticket: ticketParam } = Route.useSearch();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Payload | null>(null);
   const [selected, setSelected] = useState<TicketRow | null>(null);
