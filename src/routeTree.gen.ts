@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
 import { Route as AuthenticatedCobrosRouteImport } from './routes/_authenticated/cobros'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDocumentalRouteImport } from './routes/_authenticated/documental'
@@ -34,6 +35,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCobrosRoute = AuthenticatedCobrosRouteImport.update({
   id: '/cobros',
@@ -81,6 +87,7 @@ const ApiPublicIpRoute = ApiPublicIpRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/cobros': typeof AuthenticatedCobrosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documental': typeof AuthenticatedDocumentalRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/cobros': typeof AuthenticatedCobrosRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documental': typeof AuthenticatedDocumentalRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/cobros': typeof AuthenticatedCobrosRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documental': typeof AuthenticatedDocumentalRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/auditoria'
     | '/cobros'
     | '/dashboard'
     | '/documental'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/auditoria'
     | '/cobros'
     | '/dashboard'
     | '/documental'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/auditoria'
     | '/_authenticated/cobros'
     | '/_authenticated/dashboard'
     | '/_authenticated/documental'
@@ -185,6 +197,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/auditoria': {
+      id: '/_authenticated/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/cobros': {
       id: '/_authenticated/cobros'
@@ -246,6 +265,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
   AuthenticatedCobrosRoute: typeof AuthenticatedCobrosRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentalRoute: typeof AuthenticatedDocumentalRoute
@@ -256,6 +276,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
   AuthenticatedCobrosRoute: AuthenticatedCobrosRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentalRoute: AuthenticatedDocumentalRoute,
