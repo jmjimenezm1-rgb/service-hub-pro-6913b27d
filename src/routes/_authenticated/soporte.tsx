@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, LifeBuoy, Plus } from "lucide-react";
@@ -63,10 +63,13 @@ export const Route = createFileRoute("/_authenticated/soporte")({
       },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { ticket?: string } =>
+    search["ticket"] ? { ticket: String(search["ticket"]) } : {},
   component: SoportePage,
 });
 
 function SoportePage() {
+  const { ticket: ticketParam } = Route.useSearch();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Payload | null>(null);
   const [selected, setSelected] = useState<TicketRow | null>(null);
@@ -85,6 +88,13 @@ function SoportePage() {
       return (data ?? []) as unknown as TicketRow[];
     },
   });
+
+  /** Acceso directo desde el dashboard: /soporte?ticket=<id>. */
+  useEffect(() => {
+    if (!ticketParam || tickets.length === 0) return;
+    const match = tickets.find((t) => t.id === ticketParam);
+    if (match) setSelected(match);
+  }, [ticketParam, tickets]);
 
   const { data: clients = [] } = useQuery(clientsQuery);
   const { data: applications = [] } = useQuery(applicationsQuery);
