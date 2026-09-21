@@ -186,7 +186,7 @@ function DashboardPage() {
                   <StatusBadge value={t.prioridad} />
                   <StatusBadge value={t.estado} />
                 </div>
-              </div>
+              </Link>
             ))}
             {data.tickets.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
