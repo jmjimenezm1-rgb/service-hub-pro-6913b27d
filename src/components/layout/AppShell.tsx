@@ -28,6 +28,7 @@ import { useRoles, useSession } from "@/hooks/use-session";
 import { ROLE_LABELS } from "@/lib/roles";
 import { MODULES } from "@/lib/modules";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/audit";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
@@ -49,6 +50,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function signOut() {
+    await logAudit({
+      modulo: "auth",
+      entidad: "logout",
+      accion: "logout",
+      valorAnterior: { email: user?.email ?? null },
+    });
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
