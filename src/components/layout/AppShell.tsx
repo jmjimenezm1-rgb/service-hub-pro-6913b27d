@@ -28,6 +28,7 @@ import { useRoles, useSession } from "@/hooks/use-session";
 import { ROLE_LABELS } from "@/lib/roles";
 import { MODULES } from "@/lib/modules";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/audit";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
