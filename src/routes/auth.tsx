@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/audit";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -39,6 +40,12 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
+    await logAudit({
+      modulo: "auth",
+      entidad: "login",
+      accion: "login",
+      valorNuevo: { email },
+    });
     navigate({ to: "/dashboard", replace: true });
   }
 
