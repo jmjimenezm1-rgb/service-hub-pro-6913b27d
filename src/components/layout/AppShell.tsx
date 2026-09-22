@@ -49,6 +49,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function signOut() {
+    await logAudit({
+      modulo: "auth",
+      entidad: "logout",
+      accion: "logout",
+      valorAnterior: { email: user?.email ?? null },
+    });
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
