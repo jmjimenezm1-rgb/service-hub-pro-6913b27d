@@ -8,6 +8,13 @@
       "when": 1790056736757,
       "tag": "0000_audit_log_staff_read",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790145787613,
+      "tag": "0001_create_compras_gastos_pagos",
+      "breakpoints": true
     }
   ]
 }
