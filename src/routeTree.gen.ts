@@ -14,10 +14,12 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
 import { Route as AuthenticatedCobrosRouteImport } from './routes/_authenticated/cobros'
+import { Route as AuthenticatedComprasRouteImport } from './routes/_authenticated/compras'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDocumentalRouteImport } from './routes/_authenticated/documental'
 import { Route as AuthenticatedFacturacionRouteImport } from './routes/_authenticated/facturacion'
 import { Route as AuthenticatedFinancieroRouteImport } from './routes/_authenticated/financiero'
+import { Route as AuthenticatedPagosRouteImport } from './routes/_authenticated/pagos'
 import { Route as AuthenticatedParametrizacionRouteImport } from './routes/_authenticated/parametrizacion'
 import { Route as AuthenticatedSoporteRouteImport } from './routes/_authenticated/soporte'
 import { Route as ApiPublicIpRouteImport } from './routes/api/public/ip'
@@ -46,6 +48,11 @@ const AuthenticatedCobrosRoute = AuthenticatedCobrosRouteImport.update({
   path: '/cobros',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedComprasRoute = AuthenticatedComprasRouteImport.update({
+  id: '/compras',
+  path: '/compras',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -65,6 +72,11 @@ const AuthenticatedFacturacionRoute =
 const AuthenticatedFinancieroRoute = AuthenticatedFinancieroRouteImport.update({
   id: '/financiero',
   path: '/financiero',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPagosRoute = AuthenticatedPagosRouteImport.update({
+  id: '/pagos',
+  path: '/pagos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedParametrizacionRoute =
@@ -89,10 +101,12 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/cobros': typeof AuthenticatedCobrosRoute
+  '/compras': typeof AuthenticatedComprasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documental': typeof AuthenticatedDocumentalRoute
   '/facturacion': typeof AuthenticatedFacturacionRoute
   '/financiero': typeof AuthenticatedFinancieroRoute
+  '/pagos': typeof AuthenticatedPagosRoute
   '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
   '/api/public/ip': typeof ApiPublicIpRoute
@@ -102,10 +116,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/cobros': typeof AuthenticatedCobrosRoute
+  '/compras': typeof AuthenticatedComprasRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documental': typeof AuthenticatedDocumentalRoute
   '/facturacion': typeof AuthenticatedFacturacionRoute
   '/financiero': typeof AuthenticatedFinancieroRoute
+  '/pagos': typeof AuthenticatedPagosRoute
   '/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/soporte': typeof AuthenticatedSoporteRoute
   '/api/public/ip': typeof ApiPublicIpRoute
@@ -117,10 +133,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/cobros': typeof AuthenticatedCobrosRoute
+  '/_authenticated/compras': typeof AuthenticatedComprasRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documental': typeof AuthenticatedDocumentalRoute
   '/_authenticated/facturacion': typeof AuthenticatedFacturacionRoute
   '/_authenticated/financiero': typeof AuthenticatedFinancieroRoute
+  '/_authenticated/pagos': typeof AuthenticatedPagosRoute
   '/_authenticated/parametrizacion': typeof AuthenticatedParametrizacionRoute
   '/_authenticated/soporte': typeof AuthenticatedSoporteRoute
   '/api/public/ip': typeof ApiPublicIpRoute
@@ -132,10 +150,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/auditoria'
     | '/cobros'
+    | '/compras'
     | '/dashboard'
     | '/documental'
     | '/facturacion'
     | '/financiero'
+    | '/pagos'
     | '/parametrizacion'
     | '/soporte'
     | '/api/public/ip'
@@ -145,10 +165,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/auditoria'
     | '/cobros'
+    | '/compras'
     | '/dashboard'
     | '/documental'
     | '/facturacion'
     | '/financiero'
+    | '/pagos'
     | '/parametrizacion'
     | '/soporte'
     | '/api/public/ip'
@@ -159,10 +181,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/auditoria'
     | '/_authenticated/cobros'
+    | '/_authenticated/compras'
     | '/_authenticated/dashboard'
     | '/_authenticated/documental'
     | '/_authenticated/facturacion'
     | '/_authenticated/financiero'
+    | '/_authenticated/pagos'
     | '/_authenticated/parametrizacion'
     | '/_authenticated/soporte'
     | '/api/public/ip'
@@ -212,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCobrosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/compras': {
+      id: '/_authenticated/compras'
+      path: '/compras'
+      fullPath: '/compras'
+      preLoaderRoute: typeof AuthenticatedComprasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -238,6 +269,13 @@ declare module '@tanstack/react-router' {
       path: '/financiero'
       fullPath: '/financiero'
       preLoaderRoute: typeof AuthenticatedFinancieroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pagos': {
+      id: '/_authenticated/pagos'
+      path: '/pagos'
+      fullPath: '/pagos'
+      preLoaderRoute: typeof AuthenticatedPagosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/parametrizacion': {
@@ -267,10 +305,12 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
   AuthenticatedCobrosRoute: typeof AuthenticatedCobrosRoute
+  AuthenticatedComprasRoute: typeof AuthenticatedComprasRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentalRoute: typeof AuthenticatedDocumentalRoute
   AuthenticatedFacturacionRoute: typeof AuthenticatedFacturacionRoute
   AuthenticatedFinancieroRoute: typeof AuthenticatedFinancieroRoute
+  AuthenticatedPagosRoute: typeof AuthenticatedPagosRoute
   AuthenticatedParametrizacionRoute: typeof AuthenticatedParametrizacionRoute
   AuthenticatedSoporteRoute: typeof AuthenticatedSoporteRoute
 }
@@ -278,10 +318,12 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
   AuthenticatedCobrosRoute: AuthenticatedCobrosRoute,
+  AuthenticatedComprasRoute: AuthenticatedComprasRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentalRoute: AuthenticatedDocumentalRoute,
   AuthenticatedFacturacionRoute: AuthenticatedFacturacionRoute,
   AuthenticatedFinancieroRoute: AuthenticatedFinancieroRoute,
+  AuthenticatedPagosRoute: AuthenticatedPagosRoute,
   AuthenticatedParametrizacionRoute: AuthenticatedParametrizacionRoute,
   AuthenticatedSoporteRoute: AuthenticatedSoporteRoute,
 }

@@ -17,7 +17,10 @@ export type CrudTable =
   | "documents"
   | "tickets"
   | "ticket_comments"
-  | "numbering_patterns";
+  | "numbering_patterns"
+  | "suppliers"
+  | "purchase_invoices"
+  | "supplier_payments";
 
 interface CrudOptions {
   /** Módulo funcional, usado en el registro de auditoría. */

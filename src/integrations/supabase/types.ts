@@ -982,6 +982,253 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_invoices: {
+        Row: {
+          account_id: string | null
+          base_imponible: number
+          categoria: string | null
+          concepto: string
+          cost_center_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          estado: Database["public"]["Enums"]["purchase_status"]
+          fecha_emision: string
+          fecha_recepcion: string | null
+          fecha_vencimiento: string | null
+          id: string
+          iva: number
+          iva_pct: number
+          moneda: string
+          notas: string | null
+          numero: string
+          numero_proveedor: string | null
+          pagado: number
+          retencion: number
+          supplier_id: string | null
+          total: number
+          updated_at: string
+          updated_by: string | null
+          uuid: string
+        }
+        Insert: {
+          account_id?: string | null
+          base_imponible?: number
+          categoria?: string | null
+          concepto: string
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          estado?: Database["public"]["Enums"]["purchase_status"]
+          fecha_emision?: string
+          fecha_recepcion?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          iva?: number
+          iva_pct?: number
+          moneda?: string
+          notas?: string | null
+          numero: string
+          numero_proveedor?: string | null
+          pagado?: number
+          retencion?: number
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+          updated_by?: string | null
+          uuid?: string
+        }
+        Update: {
+          account_id?: string | null
+          base_imponible?: number
+          categoria?: string | null
+          concepto?: string
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          estado?: Database["public"]["Enums"]["purchase_status"]
+          fecha_emision?: string
+          fecha_recepcion?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          iva?: number
+          iva_pct?: number
+          moneda?: string
+          notas?: string | null
+          numero?: string
+          numero_proveedor?: string | null
+          pagado?: number
+          retencion?: number
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+          updated_by?: string | null
+          uuid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoices_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_payments: {
+        Row: {
+          conciliado: boolean
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          estado: Database["public"]["Enums"]["payment_status"]
+          fecha_conciliacion: string | null
+          fecha_devolucion: string | null
+          fecha_pago: string | null
+          fecha_prevista: string | null
+          id: string
+          importe: number
+          metodo: Database["public"]["Enums"]["payment_method"]
+          observaciones: string | null
+          purchase_invoice_id: string | null
+          referencia: string
+          supplier_id: string | null
+          updated_at: string
+          updated_by: string | null
+          uuid: string
+        }
+        Insert: {
+          conciliado?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          estado?: Database["public"]["Enums"]["payment_status"]
+          fecha_conciliacion?: string | null
+          fecha_devolucion?: string | null
+          fecha_pago?: string | null
+          fecha_prevista?: string | null
+          id?: string
+          importe?: number
+          metodo?: Database["public"]["Enums"]["payment_method"]
+          observaciones?: string | null
+          purchase_invoice_id?: string | null
+          referencia: string
+          supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uuid?: string
+        }
+        Update: {
+          conciliado?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          estado?: Database["public"]["Enums"]["payment_status"]
+          fecha_conciliacion?: string | null
+          fecha_devolucion?: string | null
+          fecha_pago?: string | null
+          fecha_prevista?: string | null
+          id?: string
+          importe?: number
+          metodo?: Database["public"]["Enums"]["payment_method"]
+          observaciones?: string | null
+          purchase_invoice_id?: string | null
+          referencia?: string
+          supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uuid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_purchase_invoice_id_fkey"
+            columns: ["purchase_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          direccion: string | null
+          email: string | null
+          estado: Database["public"]["Enums"]["record_status"]
+          id: string
+          nif: string | null
+          nombre_comercial: string | null
+          observaciones: string | null
+          razon_social: string
+          telefono: string | null
+          updated_at: string
+          updated_by: string | null
+          uuid: string
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          direccion?: string | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["record_status"]
+          id?: string
+          nif?: string | null
+          nombre_comercial?: string | null
+          observaciones?: string | null
+          razon_social: string
+          telefono?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uuid?: string
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          direccion?: string | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["record_status"]
+          id?: string
+          nif?: string | null
+          nombre_comercial?: string | null
+          observaciones?: string | null
+          razon_social?: string
+          telefono?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uuid?: string
+        }
+        Relationships: []
+      }
       ticket_comments: {
         Row: {
           autor_id: string | null
@@ -1192,6 +1439,14 @@ export type Database = {
         | "devuelto"
         | "cancelado"
         | "impagado"
+      purchase_status:
+        | "borrador"
+        | "recibida"
+        | "aprobada"
+        | "contabilizada"
+        | "pagada"
+        | "parcial"
+        | "anulada"
       record_status: "activo" | "inactivo" | "borrador" | "archivado"
       ticket_priority: "baja" | "media" | "alta" | "critica"
       ticket_status:
@@ -1378,6 +1633,15 @@ export const Constants = {
         "devuelto",
         "cancelado",
         "impagado",
+      ],
+      purchase_status: [
+        "borrador",
+        "recibida",
+        "aprobada",
+        "contabilizada",
+        "pagada",
+        "parcial",
+        "anulada",
       ],
       record_status: ["activo", "inactivo", "borrador", "archivado"],
       ticket_priority: ["baja", "media", "alta", "critica"],
