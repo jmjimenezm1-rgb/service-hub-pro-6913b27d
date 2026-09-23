@@ -17,7 +17,9 @@ export type NumberingEntity =
   | "cobro"
   | "asiento"
   | "documento"
-  | "ticket";
+  | "ticket"
+  | "compra"
+  | "pago";
 
 export interface NumberingPattern {
   id: string;
@@ -37,6 +39,8 @@ export const NUMBERING_ENTITIES: { value: NumberingEntity; label: string }[] = [
   { value: "asiento", label: "Asiento contable" },
   { value: "documento", label: "Documento" },
   { value: "ticket", label: "Ticket de soporte" },
+  { value: "compra", label: "Factura de compra / gasto" },
+  { value: "pago", label: "Pago a proveedor" },
 ];
 
 export const NUMBERING_RESETS = [
