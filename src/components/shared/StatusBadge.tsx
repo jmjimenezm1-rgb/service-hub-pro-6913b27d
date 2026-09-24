@@ -49,12 +49,20 @@ const CLASSES: Record<Tone, string> = {
   muted: "bg-muted text-muted-foreground border-transparent",
 };
 
-export function StatusBadge({ value, className }: { value: string | null; className?: string }) {
+export function StatusBadge({
+  value,
+  className,
+  label: custom,
+}: {
+  value: string | null;
+  className?: string;
+  label?: string;
+}) {
   if (!value) return <span className="text-muted-foreground">—</span>;
   const tone = TONES[value] ?? "neutral";
   return (
     <Badge variant="outline" className={cn("font-medium", CLASSES[tone], className)}>
-      {label(value)}
+      {custom ?? label(value)}
     </Badge>
   );
 }
