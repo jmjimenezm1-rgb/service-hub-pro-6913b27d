@@ -326,11 +326,19 @@ function FinancieroPage() {
       </div>
 
       <Tabs defaultValue="asientos">
-        <TabsList>
-          <TabsTrigger value="asientos">Asientos</TabsTrigger>
-          <TabsTrigger value="balance">Sumas y saldos</TabsTrigger>
-          <TabsTrigger value="cuentas">Plan de cuentas</TabsTrigger>
-          <TabsTrigger value="centros">Centros de coste</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:inline-flex sm:h-9 sm:w-auto">
+          <TabsTrigger className="w-full whitespace-normal px-2 sm:w-auto sm:whitespace-nowrap sm:px-3" value="asientos">
+            Asientos
+          </TabsTrigger>
+          <TabsTrigger className="w-full whitespace-normal px-2 sm:w-auto sm:whitespace-nowrap sm:px-3" value="balance">
+            Sumas y saldos
+          </TabsTrigger>
+          <TabsTrigger className="w-full whitespace-normal px-2 sm:w-auto sm:whitespace-nowrap sm:px-3" value="cuentas">
+            Plan de cuentas
+          </TabsTrigger>
+          <TabsTrigger className="w-full whitespace-normal px-2 sm:w-auto sm:whitespace-nowrap sm:px-3" value="centros">
+            Centros de coste
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="balance" className="mt-4">

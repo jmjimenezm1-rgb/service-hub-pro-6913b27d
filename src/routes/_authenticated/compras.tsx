@@ -380,10 +380,16 @@ function ComprasPage() {
       </div>
 
       <Tabs defaultValue="facturas">
-        <TabsList>
-          <TabsTrigger value="facturas">Facturas de compra</TabsTrigger>
-          <TabsTrigger value="categorias">Gasto por categoría</TabsTrigger>
-          <TabsTrigger value="proveedores">Proveedores</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:inline-flex sm:h-9 sm:w-auto">
+          <TabsTrigger className="w-full whitespace-normal px-2 sm:w-auto sm:whitespace-nowrap sm:px-3" value="facturas">
+            Facturas de compra
+          </TabsTrigger>
+          <TabsTrigger className="w-full whitespace-normal px-2 sm:w-auto sm:whitespace-nowrap sm:px-3" value="categorias">
+            Gasto por categoría
+          </TabsTrigger>
+          <TabsTrigger className="col-span-2 w-full whitespace-normal px-2 sm:col-span-1 sm:w-auto sm:whitespace-nowrap sm:px-3" value="proveedores">
+            Proveedores
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="facturas" className="mt-4">
