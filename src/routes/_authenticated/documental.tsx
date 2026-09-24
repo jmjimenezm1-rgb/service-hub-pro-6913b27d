@@ -11,6 +11,7 @@ import { DataTable, exportCsv, type Column } from "@/components/shared/DataTable
 import { FormDialog } from "@/components/shared/FormDialog";
 import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
+import { DocumentViewer, type ViewerDoc } from "@/components/shared/DocumentViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsQuery, toOptions } from "@/modules/common/api";
 import { useCrud, type Payload } from "@/lib/crud";
@@ -25,6 +26,7 @@ interface DocRow {
   version: number;
   tamano_bytes: number | null;
   storage_path: string | null;
+  mime_type: string | null;
   client_id: string | null;
   invoice_id: string | null;
   created_at: string;
@@ -65,6 +67,7 @@ export const Route = createFileRoute("/_authenticated/documental")({
 function DocumentalPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Payload | null>(null);
+  const [viewing, setViewing] = useState<ViewerDoc | null>(null);
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ["documental", "documents"],
@@ -72,7 +75,7 @@ function DocumentalPage() {
       const { data, error } = await supabase
         .from("documents")
         .select(
-          "id, nombre, tipo, estado, descripcion, version, tamano_bytes, storage_path, client_id, invoice_id, created_at, clients(razon_social), invoices(numero)",
+          "id, nombre, tipo, estado, descripcion, version, tamano_bytes, storage_path, mime_type, client_id, invoice_id, created_at, clients(razon_social), invoices(numero)",
         )
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
@@ -152,6 +155,7 @@ function DocumentalPage() {
       sortable: false,
       className: "w-12 text-right",
       render: (r) => (
+        <div onClick={(e) => e.stopPropagation()}>
         <RowActions
           onEdit={() => {
             setEditing(r as unknown as Payload);
@@ -187,6 +191,7 @@ function DocumentalPage() {
             },
           ]}
         />
+        </div>
       ),
     },
   ];
@@ -227,8 +232,11 @@ function DocumentalPage() {
         columns={columns}
         loading={isLoading}
         searchPlaceholder="Buscar documento…"
+        onRowClick={(r) => setViewing(r)}
         onExport={() => exportCsv("documentos", docs, columns)}
       />
+
+      <DocumentViewer doc={viewing} onClose={() => setViewing(null)} />
 
       <FormDialog
         open={open}
