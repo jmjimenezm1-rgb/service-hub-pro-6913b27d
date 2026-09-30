@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BadgeCheck, Banknote, Clock, Link2, Plus, TriangleAlert } from "lucide-react";
+import { BadgeCheck, Banknote, CheckCheck, Clock, Link2, Plus, TriangleAlert } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -11,7 +11,10 @@ import { DataTable, exportCsv, type Column } from "@/components/shared/DataTable
 import { FormDialog, type Field } from "@/components/shared/FormDialog";
 import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
 import {
   PAGO_METHODS,
   PAGO_STATES,
@@ -56,6 +59,60 @@ function PagosPage() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierPaymentRow | null>(null);
+  const [vencDesde, setVencDesde] = useState("");
+  const [vencHasta, setVencHasta] = useState("");
+  const [aprobando, setAprobando] = useState(false);
+
+  const vencimientoPorCompra = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const p of purchases) map.set(p.id, p.fecha_vencimiento);
+    return map;
+  }, [purchases]);
+
+  const pagosFiltrados = useMemo(
+    () =>
+      pagos.filter((p) => {
+        const f = p.purchase_invoice_id
+          ? vencimientoPorCompra.get(p.purchase_invoice_id)
+          : null;
+        if (vencDesde && (!f || f < vencDesde)) return false;
+        if (vencHasta && (!f || f > vencHasta)) return false;
+        return true;
+      }),
+    [pagos, vencimientoPorCompra, vencDesde, vencHasta],
+  );
+
+  const aprobarFiltradas = async () => {
+    const ids = new Set(
+      pagosFiltrados
+        .map((p) => p.purchase_invoice_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const candidatas = purchases.filter(
+      (p) => ids.has(p.id) && !["aprobada", "contabilizada", "pagada", "anulada"].includes(p.estado),
+    );
+    if (candidatas.length === 0) {
+      toast.info("No hay facturas filtradas pendientes de aprobación.");
+      return;
+    }
+    setAprobando(true);
+    try {
+      const { error } = await supabase
+        .from("purchase_invoices")
+        .update({ estado: "aprobada" })
+        .in(
+          "id",
+          candidatas.map((p) => p.id),
+        );
+      if (error) throw error;
+      toast.success(`${candidatas.length} facturas aprobadas para pago.`);
+      void qc.invalidateQueries({ queryKey: ["compras"] });
+    } catch (e) {
+      toast.error(`Error al aprobar: ${(e as Error).message}`);
+    } finally {
+      setAprobando(false);
+    }
+  };
 
   const crud = useCrud("supplier_payments", {
     modulo: "pagos",
@@ -359,12 +416,61 @@ function PagosPage() {
         </TabsList>
 
         <TabsContent value="pagos" className="mt-4">
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
+            <div className="space-y-1">
+              <Label htmlFor="pagos-venc-desde" className="text-xs">
+                Vencimiento factura desde
+              </Label>
+              <Input
+                id="pagos-venc-desde"
+                type="date"
+                value={vencDesde}
+                onChange={(e) => setVencDesde(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="pagos-venc-hasta" className="text-xs">
+                Vencimiento factura hasta
+              </Label>
+              <Input
+                id="pagos-venc-hasta"
+                type="date"
+                value={vencHasta}
+                onChange={(e) => setVencHasta(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            {(vencDesde || vencHasta) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setVencDesde("");
+                  setVencHasta("");
+                }}
+              >
+                Limpiar
+              </Button>
+            )}
+            <div className="ml-auto">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void aprobarFiltradas()}
+                disabled={aprobando || pagosFiltrados.length === 0}
+              >
+                <CheckCheck className="mr-1.5 h-4 w-4" />
+                {aprobando ? "Aprobando…" : "Aprobar facturas filtradas"}
+              </Button>
+            </div>
+          </div>
           <DataTable
-            data={pagos}
+            data={pagosFiltrados}
             columns={columns}
             loading={isLoading}
             searchPlaceholder="Buscar por referencia, proveedor o factura…"
-            onExport={() => exportCsv("pagos-proveedores", pagos, columns)}
+            onExport={() => exportCsv("pagos-proveedores", pagosFiltrados, columns)}
           />
         </TabsContent>
 

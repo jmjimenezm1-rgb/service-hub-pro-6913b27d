@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building, Plus, Receipt, ShoppingCart, Wallet } from "lucide-react";
+import { Building, CheckCheck, Plus, Receipt, ShoppingCart, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -10,6 +11,8 @@ import { DataTable, exportCsv, type Column } from "@/components/shared/DataTable
 import { FormDialog, type Field } from "@/components/shared/FormDialog";
 import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -84,6 +87,41 @@ function ComprasPage() {
   const [editing, setEditing] = useState<PurchaseRow | null>(null);
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierRow | null>(null);
+  const [vencDesde, setVencDesde] = useState("");
+  const [vencHasta, setVencHasta] = useState("");
+  const [aprobando, setAprobando] = useState(false);
+
+  const comprasFiltradas = useMemo(
+    () =>
+      purchases.filter((p) => {
+        const f = p.fecha_vencimiento;
+        if (vencDesde && (!f || f < vencDesde)) return false;
+        if (vencHasta && (!f || f > vencHasta)) return false;
+        return true;
+      }),
+    [purchases, vencDesde, vencHasta],
+  );
+
+  const aprobarFiltradas = async () => {
+    const pendientes = comprasFiltradas.filter(
+      (p) => !["aprobada", "contabilizada", "pagada", "anulada"].includes(p.estado),
+    );
+    if (pendientes.length === 0) {
+      toast.info("No hay facturas filtradas pendientes de aprobación.");
+      return;
+    }
+    setAprobando(true);
+    try {
+      for (const p of pendientes) {
+        await purchaseCrud.update.mutateAsync({ id: p.id, values: { estado: "aprobada" } });
+      }
+      toast.success(`${pendientes.length} facturas aprobadas para pago.`);
+    } catch (e) {
+      toast.error(`Error al aprobar: ${(e as Error).message}`);
+    } finally {
+      setAprobando(false);
+    }
+  };
 
   const purchaseCrud = useCrud("purchase_invoices", {
     modulo: "compras",
@@ -393,12 +431,61 @@ function ComprasPage() {
         </TabsList>
 
         <TabsContent value="facturas" className="mt-4">
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
+            <div className="space-y-1">
+              <Label htmlFor="venc-desde" className="text-xs">
+                Vencimiento desde
+              </Label>
+              <Input
+                id="venc-desde"
+                type="date"
+                value={vencDesde}
+                onChange={(e) => setVencDesde(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="venc-hasta" className="text-xs">
+                Vencimiento hasta
+              </Label>
+              <Input
+                id="venc-hasta"
+                type="date"
+                value={vencHasta}
+                onChange={(e) => setVencHasta(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            {(vencDesde || vencHasta) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setVencDesde("");
+                  setVencHasta("");
+                }}
+              >
+                Limpiar
+              </Button>
+            )}
+            <div className="ml-auto">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void aprobarFiltradas()}
+                disabled={aprobando || comprasFiltradas.length === 0}
+              >
+                <CheckCheck className="mr-1.5 h-4 w-4" />
+                {aprobando ? "Aprobando…" : `Aprobar filtradas (${comprasFiltradas.length})`}
+              </Button>
+            </div>
+          </div>
           <DataTable
-            data={purchases}
+            data={comprasFiltradas}
             columns={columns}
             loading={isLoading}
             searchPlaceholder="Buscar por número, proveedor o concepto…"
-            onExport={() => exportCsv("compras-y-gastos", purchases, columns)}
+            onExport={() => exportCsv("compras-y-gastos", comprasFiltradas, columns)}
           />
         </TabsContent>
 
