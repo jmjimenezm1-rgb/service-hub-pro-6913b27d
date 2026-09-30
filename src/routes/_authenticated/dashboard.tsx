@@ -126,8 +126,8 @@ function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-base">Últimas facturas</CardTitle>
             <Button asChild variant="ghost" size="sm">
@@ -161,7 +161,7 @@ function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-base">Soporte reciente</CardTitle>
             <Button asChild variant="ghost" size="sm">
