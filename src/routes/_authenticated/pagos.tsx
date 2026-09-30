@@ -59,6 +59,60 @@ function PagosPage() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierPaymentRow | null>(null);
+  const [vencDesde, setVencDesde] = useState("");
+  const [vencHasta, setVencHasta] = useState("");
+  const [aprobando, setAprobando] = useState(false);
+
+  const vencimientoPorCompra = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const p of purchases) map.set(p.id, p.fecha_vencimiento);
+    return map;
+  }, [purchases]);
+
+  const pagosFiltrados = useMemo(
+    () =>
+      pagos.filter((p) => {
+        const f = p.purchase_invoice_id
+          ? vencimientoPorCompra.get(p.purchase_invoice_id)
+          : null;
+        if (vencDesde && (!f || f < vencDesde)) return false;
+        if (vencHasta && (!f || f > vencHasta)) return false;
+        return true;
+      }),
+    [pagos, vencimientoPorCompra, vencDesde, vencHasta],
+  );
+
+  const aprobarFiltradas = async () => {
+    const ids = new Set(
+      pagosFiltrados
+        .map((p) => p.purchase_invoice_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const candidatas = purchases.filter(
+      (p) => ids.has(p.id) && !["aprobada", "contabilizada", "pagada", "anulada"].includes(p.estado),
+    );
+    if (candidatas.length === 0) {
+      toast.info("No hay facturas filtradas pendientes de aprobación.");
+      return;
+    }
+    setAprobando(true);
+    try {
+      const { error } = await supabase
+        .from("purchase_invoices")
+        .update({ estado: "aprobada" })
+        .in(
+          "id",
+          candidatas.map((p) => p.id),
+        );
+      if (error) throw error;
+      toast.success(`${candidatas.length} facturas aprobadas para pago.`);
+      void qc.invalidateQueries({ queryKey: ["compras"] });
+    } catch (e) {
+      toast.error(`Error al aprobar: ${(e as Error).message}`);
+    } finally {
+      setAprobando(false);
+    }
+  };
 
   const crud = useCrud("supplier_payments", {
     modulo: "pagos",
