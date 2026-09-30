@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BadgeCheck, Banknote, Clock, Link2, Plus, TriangleAlert } from "lucide-react";
+import { BadgeCheck, Banknote, CheckCheck, Clock, Link2, Plus, TriangleAlert } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -11,7 +11,10 @@ import { DataTable, exportCsv, type Column } from "@/components/shared/DataTable
 import { FormDialog, type Field } from "@/components/shared/FormDialog";
 import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
 import {
   PAGO_METHODS,
   PAGO_STATES,
