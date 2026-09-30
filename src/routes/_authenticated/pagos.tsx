@@ -416,12 +416,61 @@ function PagosPage() {
         </TabsList>
 
         <TabsContent value="pagos" className="mt-4">
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
+            <div className="space-y-1">
+              <Label htmlFor="pagos-venc-desde" className="text-xs">
+                Vencimiento factura desde
+              </Label>
+              <Input
+                id="pagos-venc-desde"
+                type="date"
+                value={vencDesde}
+                onChange={(e) => setVencDesde(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="pagos-venc-hasta" className="text-xs">
+                Vencimiento factura hasta
+              </Label>
+              <Input
+                id="pagos-venc-hasta"
+                type="date"
+                value={vencHasta}
+                onChange={(e) => setVencHasta(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            {(vencDesde || vencHasta) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setVencDesde("");
+                  setVencHasta("");
+                }}
+              >
+                Limpiar
+              </Button>
+            )}
+            <div className="ml-auto">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void aprobarFiltradas()}
+                disabled={aprobando || pagosFiltrados.length === 0}
+              >
+                <CheckCheck className="mr-1.5 h-4 w-4" />
+                {aprobando ? "Aprobando…" : "Aprobar facturas filtradas"}
+              </Button>
+            </div>
+          </div>
           <DataTable
-            data={pagos}
+            data={pagosFiltrados}
             columns={columns}
             loading={isLoading}
             searchPlaceholder="Buscar por referencia, proveedor o factura…"
-            onExport={() => exportCsv("pagos-proveedores", pagos, columns)}
+            onExport={() => exportCsv("pagos-proveedores", pagosFiltrados, columns)}
           />
         </TabsContent>
 
