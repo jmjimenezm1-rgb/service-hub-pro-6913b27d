@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building, Plus, Receipt, ShoppingCart, Wallet } from "lucide-react";
+import { Building, CheckCheck, Plus, Receipt, ShoppingCart, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -10,6 +11,8 @@ import { DataTable, exportCsv, type Column } from "@/components/shared/DataTable
 import { FormDialog, type Field } from "@/components/shared/FormDialog";
 import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import {
