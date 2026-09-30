@@ -87,6 +87,41 @@ function ComprasPage() {
   const [editing, setEditing] = useState<PurchaseRow | null>(null);
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierRow | null>(null);
+  const [vencDesde, setVencDesde] = useState("");
+  const [vencHasta, setVencHasta] = useState("");
+  const [aprobando, setAprobando] = useState(false);
+
+  const comprasFiltradas = useMemo(
+    () =>
+      purchases.filter((p) => {
+        const f = p.fecha_vencimiento;
+        if (vencDesde && (!f || f < vencDesde)) return false;
+        if (vencHasta && (!f || f > vencHasta)) return false;
+        return true;
+      }),
+    [purchases, vencDesde, vencHasta],
+  );
+
+  const aprobarFiltradas = async () => {
+    const pendientes = comprasFiltradas.filter(
+      (p) => !["aprobada", "contabilizada", "pagada", "anulada"].includes(p.estado),
+    );
+    if (pendientes.length === 0) {
+      toast.info("No hay facturas filtradas pendientes de aprobación.");
+      return;
+    }
+    setAprobando(true);
+    try {
+      for (const p of pendientes) {
+        await purchaseCrud.update.mutateAsync({ id: p.id, values: { estado: "aprobada" } });
+      }
+      toast.success(`${pendientes.length} facturas aprobadas para pago.`);
+    } catch (e) {
+      toast.error(`Error al aprobar: ${(e as Error).message}`);
+    } finally {
+      setAprobando(false);
+    }
+  };
 
   const purchaseCrud = useCrud("purchase_invoices", {
     modulo: "compras",
