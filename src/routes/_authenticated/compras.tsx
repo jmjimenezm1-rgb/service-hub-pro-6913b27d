@@ -431,12 +431,61 @@ function ComprasPage() {
         </TabsList>
 
         <TabsContent value="facturas" className="mt-4">
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
+            <div className="space-y-1">
+              <Label htmlFor="venc-desde" className="text-xs">
+                Vencimiento desde
+              </Label>
+              <Input
+                id="venc-desde"
+                type="date"
+                value={vencDesde}
+                onChange={(e) => setVencDesde(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="venc-hasta" className="text-xs">
+                Vencimiento hasta
+              </Label>
+              <Input
+                id="venc-hasta"
+                type="date"
+                value={vencHasta}
+                onChange={(e) => setVencHasta(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            {(vencDesde || vencHasta) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setVencDesde("");
+                  setVencHasta("");
+                }}
+              >
+                Limpiar
+              </Button>
+            )}
+            <div className="ml-auto">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void aprobarFiltradas()}
+                disabled={aprobando || comprasFiltradas.length === 0}
+              >
+                <CheckCheck className="mr-1.5 h-4 w-4" />
+                {aprobando ? "Aprobando…" : `Aprobar filtradas (${comprasFiltradas.length})`}
+              </Button>
+            </div>
+          </div>
           <DataTable
-            data={purchases}
+            data={comprasFiltradas}
             columns={columns}
             loading={isLoading}
             searchPlaceholder="Buscar por número, proveedor o concepto…"
-            onExport={() => exportCsv("compras-y-gastos", purchases, columns)}
+            onExport={() => exportCsv("compras-y-gastos", comprasFiltradas, columns)}
           />
         </TabsContent>
 
