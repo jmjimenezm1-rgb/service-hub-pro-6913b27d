@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Plus, Scale, Trash2, Wallet } from "lucide-react";
 
@@ -32,6 +32,9 @@ import { money, fecha, label } from "@/lib/format";
 
 interface EntryRow {
   id: string;
+  source_table: string | null;
+  source_id: string | null;
+  reversal_of: string | null;
   numero: string;
   concepto: string;
   fecha: string;
@@ -85,6 +88,8 @@ export const Route = createFileRoute("/_authenticated/financiero")({
         property: "og:description",
         content: "Consulta asientos, cuentas contables y centros de coste de la empresa.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: FinancieroPage,
@@ -105,7 +110,7 @@ function FinancieroPage() {
       const { data, error } = await supabase
         .from("journal_entries")
         .select(
-          "id, numero, concepto, fecha, ejercicio, estado, cost_center_id, invoice_id, journal_lines(debe, haber), cost_centers(nombre)",
+          "id, numero, concepto, fecha, ejercicio, estado, cost_center_id, invoice_id, source_table, source_id, reversal_of, journal_lines(debe, haber), cost_centers(nombre)",
         )
         .is("deleted_at", null)
         .order("fecha", { ascending: false });
@@ -236,6 +241,7 @@ function FinancieroPage() {
     },
     { key: "fecha", header: "Fecha", value: (r) => r.fecha, render: (r) => fecha(r.fecha) },
     { key: "concepto", header: "Concepto", value: (r) => r.concepto, render: (r) => r.concepto },
+    { key: "origen", header: "Origen", value: (r) => r.source_table ?? "manual", render: (r) => r.source_table ? `${({ invoices: "Facturación", payments: "Cobros", purchase_invoices: "Compras y gastos", supplier_payments: "Pagos" } as Record<string, string>)[r.source_table] ?? r.source_table}${r.reversal_of ? " · Reverso" : ""}` : "Manual" },
     {
       key: "centro",
       header: "Centro de coste",
@@ -275,7 +281,7 @@ function FinancieroPage() {
       header: "",
       sortable: false,
       className: "w-12 text-right",
-      render: (r) => (
+      render: (r) => r.source_table ? null : (
         <RowActions
           onEdit={() => {
             setEditingEntry(r as unknown as Payload);
@@ -295,6 +301,8 @@ function FinancieroPage() {
         titulo="Gestión financiera"
         descripcion="Plan contable, asientos por partida doble y centros de coste."
         actions={
+          <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild><Link to="/parametrizacion">Parametrización contable</Link></Button>
           <Button
             onClick={() => {
               setEditingEntry(null);
@@ -303,6 +311,7 @@ function FinancieroPage() {
           >
             <Plus className="mr-1.5 h-4 w-4" /> Nuevo asiento
           </Button>
+          </div>
         }
       />
 
@@ -647,10 +656,11 @@ function EntrySheet({
     queryKey: ["financiero", "entry-lines", entry?.id],
     enabled: Boolean(entry),
     queryFn: async () => {
+      if (!entry) return [];
       const { data, error } = await supabase
         .from("journal_lines")
         .select("id, descripcion, debe, haber, account_id, ledger_accounts(codigo, nombre)")
-        .eq("entry_id", entry!.id)
+        .eq("entry_id", entry.id)
         .is("deleted_at", null)
         .order("created_at");
       if (error) throw error;
@@ -682,9 +692,9 @@ function EntrySheet({
             <div className="space-y-4 px-4 pb-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">Apuntes</h3>
-                <Button size="sm" variant="outline" onClick={() => setLineOpen(true)}>
+                {!entry.source_table ? <Button size="sm" variant="outline" onClick={() => setLineOpen(true)}>
                   <Plus className="mr-1.5 h-4 w-4" /> Añadir apunte
-                </Button>
+                </Button> : null}
               </div>
 
               {lines.map((l) => (
@@ -695,7 +705,7 @@ function EntrySheet({
                         ? `${l.ledger_accounts.codigo} · ${l.ledger_accounts.nombre}`
                         : "Cuenta"}
                     </span>
-                    <Button
+                    {!entry.source_table ? <Button
                       size="icon"
                       variant="ghost"
                       className="h-6 w-6 shrink-0 text-destructive"
@@ -706,7 +716,7 @@ function EntrySheet({
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    </Button> : null}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {l.descripcion ?? "Sin descripción"} · Debe {money(Number(l.debe))} · Haber{" "}

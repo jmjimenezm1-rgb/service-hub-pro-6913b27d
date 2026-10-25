@@ -11,6 +11,8 @@ import { FormDialog } from "@/components/shared/FormDialog";
 import { RowActions } from "@/components/shared/RowActions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AccountingSettings } from "@/modules/financiero/AccountingSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrud, type Payload } from "@/lib/crud";
 import { label } from "@/lib/format";
@@ -38,16 +40,16 @@ const patternsQuery = {
 export const Route = createFileRoute("/_authenticated/parametrizacion")({
   head: () => ({
     meta: [
-      { title: "Parametrización de códigos | ServiceHub" },
+      { title: "Parametrización contable y de códigos | ServiceHub" },
       {
         name: "description",
         content:
-          "Define los patrones con los que ServiceHub genera automáticamente los códigos de facturas, cobros y documentos.",
+           "Configura cuentas contables por movimiento y patrones de numeración en ServiceHub.",
       },
-      { property: "og:title", content: "Parametrización de códigos | ServiceHub" },
+      { property: "og:title", content: "Parametrización contable y de códigos | ServiceHub" },
       {
         property: "og:description",
-        content: "Patrones de numeración automática para facturación y cobros.",
+        content: "Asociaciones contables y numeración para facturación, cobros, compras y pagos.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -145,9 +147,17 @@ function ParametrizacionPage() {
     <>
       <PageHeader
         modulo="Módulo 14"
-        titulo="Parametrización de códigos"
-        descripcion="Define cómo se generan automáticamente los códigos de facturas, cobros y documentos."
-        actions={
+        titulo="Parametrización"
+        descripcion="Cuentas contables y numeración."
+      />
+      <Tabs defaultValue="contabilidad">
+        <TabsList className="grid h-auto w-full grid-cols-2 sm:w-fit">
+          <TabsTrigger value="contabilidad">Contabilidad</TabsTrigger>
+          <TabsTrigger value="codigos">Numeración</TabsTrigger>
+        </TabsList>
+        <TabsContent value="contabilidad" className="mt-4"><AccountingSettings /></TabsContent>
+        <TabsContent value="codigos" className="mt-4 space-y-4">
+        <div className="flex justify-end">
           <Button
             onClick={() => {
               setEditing(null);
@@ -156,8 +166,7 @@ function ParametrizacionPage() {
           >
             <Plus className="mr-1.5 h-4 w-4" /> Nuevo patrón
           </Button>
-        }
-      />
+        </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard titulo="Patrones" valor={String(patterns.length)} icon={Settings2} />
@@ -195,6 +204,8 @@ function ParametrizacionPage() {
         searchPlaceholder="Buscar patrón…"
         onExport={() => exportCsv("patrones-numeracion", patterns, columns)}
       />
+        </TabsContent>
+      </Tabs>
 
       <FormDialog
         open={open}

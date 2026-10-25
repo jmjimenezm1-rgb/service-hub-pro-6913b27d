@@ -10,10 +10,84 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
+      accounting_rules: {
+        Row: {
+          contrapartida_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          iva_id: string | null
+          movimiento: string
+          nombre: string
+          principal_id: string
+          retencion_id: string | null
+          updated_at: string
+          updated_by: string | null
+          variante: string
+        }
+        Insert: {
+          contrapartida_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          iva_id?: string | null
+          movimiento: string
+          nombre: string
+          principal_id: string
+          retencion_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          variante?: string
+        }
+        Update: {
+          contrapartida_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          iva_id?: string | null
+          movimiento?: string
+          nombre?: string
+          principal_id?: string
+          retencion_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          variante?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_rules_contrapartida_id_fkey"
+            columns: ["contrapartida_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_rules_iva_id_fkey"
+            columns: ["iva_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_rules_principal_id_fkey"
+            columns: ["principal_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_rules_retencion_id_fkey"
+            columns: ["retencion_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           categoria: string | null
@@ -639,6 +713,11 @@ export type Database = {
           id: string
           invoice_id: string | null
           numero: string
+          reversal_of: string | null
+          reversed_at: string | null
+          source_fingerprint: string | null
+          source_id: string | null
+          source_table: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -654,6 +733,11 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           numero: string
+          reversal_of?: string | null
+          reversed_at?: string | null
+          source_fingerprint?: string | null
+          source_id?: string | null
+          source_table?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -669,6 +753,11 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           numero?: string
+          reversal_of?: string | null
+          reversed_at?: string | null
+          source_fingerprint?: string | null
+          source_id?: string | null
+          source_table?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -685,6 +774,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_reversal_of_fkey"
+            columns: ["reversal_of"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -1383,6 +1479,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accounting_account: { Args: { _id: string }; Returns: string }
+      accounting_reverse: { Args: { _entry: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1391,6 +1489,10 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      sync_accounting_movement: {
+        Args: { _id: string; _table: string }
+        Returns: string
+      }
     }
     Enums: {
       account_kind: "activo" | "pasivo" | "patrimonio" | "ingreso" | "gasto"

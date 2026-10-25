@@ -32,7 +32,7 @@ export async function syncInvoicePayments(invoiceId: string): Promise<void> {
   );
   const total = Number(invoice.total);
   const vencida =
-    Boolean(invoice.fecha_vencimiento) && invoice.fecha_vencimiento! < today();
+    invoice.fecha_vencimiento !== null && invoice.fecha_vencimiento < today();
 
   let estado: string;
   if (total > 0 && pagado >= total - 0.005) estado = "pagada";
@@ -63,175 +63,20 @@ export function tramoAging(dias: number): string {
   return "+90 días";
 }
 
-async function accountId(codigo: string): Promise<string> {
-  const { data, error } = await supabase
-    .from("ledger_accounts")
-    .select("id")
-    .eq("codigo", codigo)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error(`Falta la cuenta contable ${codigo} en el plan contable.`);
-  return data.id;
-}
-
-async function nextEntryNumber(ejercicio: number): Promise<string> {
-  const { count, error } = await supabase
-    .from("journal_entries")
-    .select("id", { count: "exact", head: true })
-    .eq("ejercicio", ejercicio);
-  if (error) throw error;
-  return `AS-${ejercicio}-${String((count ?? 0) + 1).padStart(4, "0")}`;
-}
-
-/**
- * Contabiliza una factura por partida doble:
- * 430 Clientes (debe total) / 700 Ventas (haber base neta) + 477 IVA (haber).
- */
+/** Verifica o genera el asiento automático sin duplicarlo. */
 export async function postInvoiceToLedger(invoiceId: string): Promise<string> {
-  const { data: existing } = await supabase
-    .from("journal_entries")
-    .select("id, numero")
-    .eq("invoice_id", invoiceId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (existing) throw new Error(`La factura ya está contabilizada en el asiento ${existing.numero}.`);
-
-  const { data: inv, error } = await supabase
-    .from("invoices")
-    .select("id, numero, fecha_emision, base_imponible, descuento, iva, total, clients(razon_social)")
-    .eq("id", invoiceId)
-    .single();
-  if (error) throw error;
-
-  const ejercicio = Number(inv.fecha_emision.slice(0, 4));
-  const numero = await nextEntryNumber(ejercicio);
-  const cliente = (inv.clients as { razon_social: string } | null)?.razon_social ?? "cliente";
-  const neto = round(Number(inv.base_imponible) - Number(inv.descuento));
-
-  const { data: user } = await supabase.auth.getUser();
-  const uid = user.user?.id ?? null;
-
-  const { data: entry, error: entryErr } = await supabase
-    .from("journal_entries")
-    .insert({
-      numero,
-      fecha: inv.fecha_emision,
-      ejercicio,
-      concepto: `Factura ${inv.numero} · ${cliente}`,
-      invoice_id: inv.id,
-      estado: "activo",
-      created_by: uid,
-      updated_by: uid,
-    })
-    .select("id")
-    .single();
-  if (entryErr) throw entryErr;
-
-  const [clientes, ventas, ivaRep] = await Promise.all([
-    accountId("430000"),
-    accountId("700000"),
-    accountId("477000"),
-  ]);
-
-  const lines = [
-    { account_id: clientes, descripcion: `Cliente ${cliente}`, debe: Number(inv.total), haber: 0 },
-    { account_id: ventas, descripcion: "Ventas de servicios", debe: 0, haber: neto },
-    { account_id: ivaRep, descripcion: "IVA repercutido", debe: 0, haber: Number(inv.iva) },
-  ].filter((l) => l.debe !== 0 || l.haber !== 0);
-
-  const { error: linesErr } = await supabase
-    .from("journal_lines")
-    .insert(lines.map((l) => ({ ...l, entry_id: entry.id, created_by: uid, updated_by: uid })));
-  if (linesErr) throw linesErr;
-
-  await logAudit({
-    modulo: "financiero",
-    entidad: "journal_entries",
-    entidadId: entry.id,
-    accion: "insert",
-    valorNuevo: { numero, invoice_id: inv.id },
-  });
-
-  return numero;
+  return postMovement("invoices", invoiceId);
 }
 
-/**
- * Contabiliza un cobro: 572 Bancos (debe) / 430 Clientes (haber).
- */
 export async function postPaymentToLedger(paymentId: string): Promise<string> {
-  const { data: existing } = await supabase
-    .from("journal_entries")
-    .select("id, numero")
-    .eq("concepto", `Cobro ${paymentId}`)
-    .maybeSingle();
-  if (existing) throw new Error("El cobro ya está contabilizado.");
+  return postMovement("payments", paymentId);
+}
 
-  const { data: pay, error } = await supabase
-    .from("payments")
-    .select("id, referencia, importe, fecha_cobro, invoice_id, clients(razon_social)")
-    .eq("id", paymentId)
-    .single();
+async function postMovement(table: string, id: string): Promise<string> {
+  const { data, error } = await supabase.rpc("sync_accounting_movement", { _table: table, _id: id });
   if (error) throw error;
-
-  const fecha = pay.fecha_cobro ?? today();
-  const ejercicio = Number(fecha.slice(0, 4));
-  const numero = await nextEntryNumber(ejercicio);
-  const cliente = (pay.clients as { razon_social: string } | null)?.razon_social ?? "cliente";
-
-  const { data: user } = await supabase.auth.getUser();
-  const uid = user.user?.id ?? null;
-
-  const { data: entry, error: entryErr } = await supabase
-    .from("journal_entries")
-    .insert({
-      numero,
-      fecha,
-      ejercicio,
-      concepto: `Cobro ${pay.referencia} · ${cliente}`,
-      invoice_id: pay.invoice_id,
-      estado: "activo",
-      created_by: uid,
-      updated_by: uid,
-    })
-    .select("id")
-    .single();
-  if (entryErr) throw entryErr;
-
-  const [bancos, clientes] = await Promise.all([accountId("572000"), accountId("430000")]);
-  const importe = Number(pay.importe);
-
-  const { error: linesErr } = await supabase.from("journal_lines").insert([
-    {
-      entry_id: entry.id,
-      account_id: bancos,
-      descripcion: `Cobro ${pay.referencia}`,
-      debe: importe,
-      haber: 0,
-      created_by: uid,
-      updated_by: uid,
-    },
-    {
-      entry_id: entry.id,
-      account_id: clientes,
-      descripcion: `Cliente ${cliente}`,
-      debe: 0,
-      haber: importe,
-      created_by: uid,
-      updated_by: uid,
-    },
-  ]);
-  if (linesErr) throw linesErr;
-
-  await logAudit({
-    modulo: "financiero",
-    entidad: "journal_entries",
-    entidadId: entry.id,
-    accion: "insert",
-    valorNuevo: { numero, payment_id: pay.id },
-  });
-
-  return numero;
+  if (!data) throw new Error("El movimiento aún no está confirmado; no requiere asiento.");
+  return data;
 }
 
 /**
@@ -330,79 +175,11 @@ export async function createRectificativa(
 
 /** ¿Está la factura contabilizada? Devuelve el número de asiento si lo está. */
 export async function ledgerEntryOf(invoiceId: string): Promise<{ id: string; numero: string } | null> {
-  const { data } = await supabase
-    .from("journal_entries")
-    .select("id, numero")
-    .eq("invoice_id", invoiceId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  return data ?? null;
-}
-
-/**
- * Genera el asiento inverso (contra-asiento) de una factura contabilizada,
- * imprescindible al anular o rectificar una factura ya emitida.
- */
-export async function reverseInvoiceLedger(
-  invoiceId: string,
-  targetInvoiceId?: string,
-): Promise<string | null> {
-  const origen = await ledgerEntryOf(invoiceId);
-  if (!origen) return null;
-
-  const { data: lines, error } = await supabase
-    .from("journal_lines")
-    .select("account_id, descripcion, debe, haber")
-    .eq("entry_id", origen.id)
-    .is("deleted_at", null);
+  const { data, error } = await supabase.from("journal_entries").select("id, numero")
+    .eq("source_table", "invoices").eq("source_id", invoiceId)
+    .is("reversal_of", null).is("reversed_at", null).is("deleted_at", null).maybeSingle();
   if (error) throw error;
-  if (!lines?.length) return null;
-
-  const fecha = today();
-  const ejercicio = Number(fecha.slice(0, 4));
-  const numero = await nextEntryNumber(ejercicio);
-
-  const { data: user } = await supabase.auth.getUser();
-  const uid = user.user?.id ?? null;
-
-  const { data: entry, error: entryErr } = await supabase
-    .from("journal_entries")
-    .insert({
-      numero,
-      fecha,
-      ejercicio,
-      concepto: `Anulación / rectificación del asiento ${origen.numero}`,
-      invoice_id: targetInvoiceId ?? invoiceId,
-      estado: "activo",
-      created_by: uid,
-      updated_by: uid,
-    })
-    .select("id")
-    .single();
-  if (entryErr) throw entryErr;
-
-  const { error: linesErr } = await supabase.from("journal_lines").insert(
-    lines.map((l) => ({
-      entry_id: entry.id,
-      account_id: l.account_id,
-      descripcion: `Reverso · ${l.descripcion ?? ""}`.trim(),
-      debe: Number(l.haber),
-      haber: Number(l.debe),
-      created_by: uid,
-      updated_by: uid,
-    })),
-  );
-  if (linesErr) throw linesErr;
-
-  await logAudit({
-    modulo: "financiero",
-    entidad: "journal_entries",
-    entidadId: entry.id,
-    accion: "insert",
-    valorNuevo: { numero, reverso_de: origen.numero },
-  });
-
-  return numero;
+  return data;
 }
 
 export interface AnulacionResult {
@@ -434,6 +211,7 @@ export async function anularFactura(
   if (error) throw error;
   if (inv.estado === "anulada") throw new Error("La factura ya está anulada.");
 
+  const originalEntry = await ledgerEntryOf(invoiceId);
   const result: AnulacionResult = {
     rectificativa: null,
     asientoReverso: null,
@@ -444,9 +222,6 @@ export async function anularFactura(
   if (opts.conRectificativa) {
     const rect = await createRectificativa(invoiceId);
     result.rectificativa = rect.numero;
-    result.asientoReverso = await reverseInvoiceLedger(invoiceId, rect.id);
-  } else {
-    result.asientoReverso = await reverseInvoiceLedger(invoiceId);
   }
 
   const { data: pays, error: payErr } = await supabase
@@ -491,6 +266,11 @@ export async function anularFactura(
     .update({ estado: "anulada", pagado: 0, updated_by: uid })
     .eq("id", invoiceId);
   if (upErr) throw upErr;
+  if (originalEntry) {
+    const { data: reversal, error: reversalError } = await supabase.from("journal_entries").select("numero").eq("reversal_of", originalEntry.id).maybeSingle();
+    if (reversalError) throw reversalError;
+    result.asientoReverso = reversal?.numero ?? null;
+  }
 
   await logAudit({
     modulo: "facturacion",

@@ -47,6 +47,9 @@ export function useCrud(table: CrudTable, opts: CrudOptions) {
 
   const refresh = () => {
     for (const key of opts.invalidate) void qc.invalidateQueries({ queryKey: key });
+    if (["invoices", "payments", "purchase_invoices", "supplier_payments"].includes(table)) {
+      void qc.invalidateQueries({ queryKey: ["financiero"] });
+    }
   };
 
   const withUser = async (payload: Payload, isNew: boolean) => {
