@@ -179,7 +179,7 @@ export async function syncPurchasePayments(purchaseId: string) {
 
   let estado = factura.estado;
   if (estado !== "anulada" && estado !== "borrador") {
-    if (pagado <= 0) estado = estado === "pagada" || estado === "parcial" ? "recibida" : estado;
+    if (pagado <= 0) estado = estado === "pagada" || estado === "parcial" ? "aprobada" : estado;
     else if (pagado + 0.009 >= Number(factura.total)) estado = "pagada";
     else estado = "parcial";
   }
