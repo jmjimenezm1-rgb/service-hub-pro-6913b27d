@@ -15,6 +15,13 @@
       "when": 1790145787613,
       "tag": "0001_create_compras_gastos_pagos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792919937936,
+      "tag": "0002_automatic_accounting_rules",
+      "breakpoints": true
     }
   ]
 }
