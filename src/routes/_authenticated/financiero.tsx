@@ -542,6 +542,7 @@ function FinancieroPage() {
         <TabsContent value="centros" className="mt-4">
           <DataTable
             data={centers}
+            onRowClick={setSelectedCenter}
             toolbar={
               <Button
                 size="sm"
@@ -554,13 +555,20 @@ function FinancieroPage() {
               </Button>
             }
             columns={[
-              { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => r.codigo },
+              { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => <Button variant="link" className="h-auto p-0" aria-label={`Ver asientos del centro ${r.codigo}`} onClick={(event) => { event.stopPropagation(); setSelectedCenter(r); }}>{r.codigo}</Button> },
               { key: "nombre", header: "Nombre", value: (r) => r.nombre, render: (r) => r.nombre },
               {
                 key: "descripcion",
                 header: "Descripción",
                 value: (r) => r.descripcion ?? "",
                 render: (r) => r.descripcion ?? "—",
+              },
+              {
+                key: "total",
+                header: "Total",
+                className: "text-right",
+                value: (r) => centerTotals.get(r.id) ?? 0,
+                render: (r) => <span className="tabular font-medium">{money(centerTotals.get(r.id) ?? 0)}</span>,
               },
               {
                 key: "estado",
