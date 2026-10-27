@@ -56,6 +56,9 @@ interface LineRow {
 }
 
 interface PostingRow {
+  id: string;
+  entry_id: string;
+  descripcion: string | null;
   debe: number;
   haber: number;
   ledger_accounts: { codigo: string; nombre: string; naturaleza: string } | null;
@@ -99,6 +102,7 @@ function FinancieroPage() {
   const [entryOpen, setEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<Payload | null>(null);
   const [selected, setSelected] = useState<EntryRow | null>(null);
+  const [selectedBalance, setSelectedBalance] = useState<BalanceRow | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Payload | null>(null);
   const [centerOpen, setCenterOpen] = useState(false);
@@ -152,7 +156,7 @@ function FinancieroPage() {
       const { data, error } = await supabase
         .from("journal_lines")
         .select(
-          "debe, haber, ledger_accounts(codigo, nombre, naturaleza), journal_entries!inner(ejercicio, deleted_at)",
+          "id, entry_id, descripcion, debe, haber, ledger_accounts(codigo, nombre, naturaleza), journal_entries!inner(ejercicio, deleted_at)",
         )
         .is("deleted_at", null);
       if (error) throw error;
@@ -192,6 +196,30 @@ function FinancieroPage() {
     }
     return Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
   }, [postings, ejercicio]);
+
+  const accountEntries = useMemo(() => {
+    const grouped = new Map<string, { id: string; entry: EntryRow | undefined; debe: number; haber: number }>();
+    for (const posting of postings) {
+      if (!selectedBalance || posting.ledger_accounts?.codigo !== selectedBalance.codigo) continue;
+      if (posting.journal_entries.deleted_at) continue;
+      if (ejercicio !== "todos" && String(posting.journal_entries.ejercicio) !== ejercicio) continue;
+      const row = grouped.get(posting.entry_id) ?? {
+        id: posting.entry_id,
+        entry: entries.find((entry) => entry.id === posting.entry_id),
+        debe: 0,
+        haber: 0,
+      };
+      row.debe += Number(posting.debe);
+      row.haber += Number(posting.haber);
+      grouped.set(row.id, row);
+    }
+    return Array.from(grouped.values()).sort((a, b) =>
+      (b.entry?.fecha ?? "").localeCompare(a.entry?.fecha ?? "") ||
+      (a.entry?.numero ?? "").localeCompare(b.entry?.numero ?? ""),
+    );
+  }, [postings, entries, selectedBalance, ejercicio]);
+  const accountDebe = accountEntries.reduce((sum, row) => sum + row.debe, 0);
+  const accountHaber = accountEntries.reduce((sum, row) => sum + row.haber, 0);
 
   const ingresos = balance
     .filter((b) => b.naturaleza === "ingreso")
@@ -353,6 +381,7 @@ function FinancieroPage() {
         <TabsContent value="balance" className="mt-4">
           <DataTable
             data={balance}
+            onRowClick={setSelectedBalance}
             toolbar={
               <Select value={ejercicio} onValueChange={setEjercicio}>
                 <SelectTrigger className="w-40">
@@ -369,7 +398,7 @@ function FinancieroPage() {
               </Select>
             }
             columns={[
-              { key: "codigo", header: "Cuenta", value: (r) => r.codigo, render: (r) => r.codigo },
+              { key: "codigo", header: "Cuenta", value: (r) => r.codigo, render: (r) => <Button variant="link" className="h-auto p-0" aria-label={`Ver asientos de la cuenta ${r.codigo}`} onClick={(event) => { event.stopPropagation(); setSelectedBalance(r); }}>{r.codigo}</Button> },
               { key: "nombre", header: "Denominación", value: (r) => r.nombre, render: (r) => r.nombre },
               {
                 key: "naturaleza",
@@ -529,6 +558,35 @@ function FinancieroPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <Sheet open={Boolean(selectedBalance) && !selected} onOpenChange={(open) => !open && setSelectedBalance(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+          <SheetHeader className="mb-5 pr-6">
+            <SheetTitle className="break-words">{selectedBalance?.codigo} · {selectedBalance?.nombre}</SheetTitle>
+            <SheetDescription>Detalle de asientos · {ejercicio === "todos" ? "Todos los ejercicios" : `Ejercicio ${ejercicio}`}</SheetDescription>
+          </SheetHeader>
+          <div className="mb-5 grid grid-cols-3 gap-2 border-y border-border py-4 text-sm">
+            <div><p className="text-muted-foreground">Debe</p><p className="tabular break-words font-semibold">{money(accountDebe)}</p></div>
+            <div><p className="text-muted-foreground">Haber</p><p className="tabular break-words font-semibold">{money(accountHaber)}</p></div>
+            <div><p className="text-muted-foreground">Saldo</p><p className="tabular break-words font-semibold">{money(accountDebe - accountHaber)}</p></div>
+          </div>
+          <DataTable
+            data={accountEntries}
+            loading={isLoading}
+            onRowClick={(row) => { if (row.entry) setSelected(row.entry); }}
+            searchPlaceholder="Buscar asiento de la cuenta…"
+            emptyMessage="No hay asientos para esta cuenta en el ejercicio seleccionado."
+            columns={[
+              { key: "numero", header: "Asiento", value: (r) => r.entry?.numero ?? "", render: (r) => <Button variant="link" className="h-auto p-0" disabled={!r.entry} onClick={(event) => { event.stopPropagation(); if (r.entry) setSelected(r.entry); }}>{r.entry?.numero ?? "—"}</Button> },
+              { key: "fecha", header: "Fecha", value: (r) => r.entry?.fecha ?? "", render: (r) => fecha(r.entry?.fecha) },
+              { key: "concepto", header: "Concepto", value: (r) => r.entry?.concepto ?? "", render: (r) => r.entry?.concepto ?? "—" },
+              { key: "reverso", header: "Tipo", value: (r) => r.entry?.reversal_of ? "Reverso" : "Asiento", render: (r) => r.entry?.reversal_of ? "Reverso" : "Asiento" },
+              { key: "debe", header: "Debe", className: "text-right", value: (r) => r.debe, render: (r) => <span className="tabular">{money(r.debe)}</span> },
+              { key: "haber", header: "Haber", className: "text-right", value: (r) => r.haber, render: (r) => <span className="tabular">{money(r.haber)}</span> },
+            ]}
+          />
+        </SheetContent>
+      </Sheet>
 
       <EntrySheet entry={selected} onClose={() => setSelected(null)} accounts={accounts} />
 
