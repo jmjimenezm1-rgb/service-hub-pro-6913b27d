@@ -559,7 +559,7 @@ function FinancieroPage() {
         </TabsContent>
       </Tabs>
 
-      <Sheet open={Boolean(selectedBalance)} onOpenChange={(open) => !open && setSelectedBalance(null)}>
+      <Sheet open={Boolean(selectedBalance) && !selected} onOpenChange={(open) => !open && setSelectedBalance(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
           <SheetHeader className="mb-5 pr-6">
             <SheetTitle className="break-words">{selectedBalance?.codigo} · {selectedBalance?.nombre}</SheetTitle>

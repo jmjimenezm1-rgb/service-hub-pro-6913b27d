@@ -12,3 +12,4 @@
 - Accounting is owned by PostgreSQL movement triggers and the idempotent `sync_accounting_movement` RPC; clients must not insert automatic journal entries, to keep source changes and balanced postings atomic.
 - Account mappings live in `accounting_rules`, with category/method overrides and a general fallback; posted entries retain their original accounts until a financial source change requires a reversal.
 - Automatic entries and lines are read-only; corrections happen on the source movement and append reversals to preserve accounting history.
+- Balance drill-down uses the same postings and exercise filter as balance totals, grouped by entry; this keeps account contributions consistent without separate financial reads.
