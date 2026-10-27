@@ -103,6 +103,7 @@ function FinancieroPage() {
   const [editingEntry, setEditingEntry] = useState<Payload | null>(null);
   const [selected, setSelected] = useState<EntryRow | null>(null);
   const [selectedBalance, setSelectedBalance] = useState<BalanceRow | null>(null);
+  const [selectedCenter, setSelectedCenter] = useState<(typeof centers)[number] | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Payload | null>(null);
   const [centerOpen, setCenterOpen] = useState(false);
@@ -228,6 +229,35 @@ function FinancieroPage() {
     .filter((b) => b.naturaleza === "gasto")
     .reduce((a, b) => a + b.debe - b.haber, 0);
   const resultado = ingresos - gastos;
+
+  /** Total movido por cada centro de coste (debe - haber de sus asientos activos). */
+  const centerTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of entries) {
+      if (!entry.cost_center_id) continue;
+      const debeEntry = entry.journal_lines.reduce((s, l) => s + Number(l.debe), 0);
+      const haberEntry = entry.journal_lines.reduce((s, l) => s + Number(l.haber), 0);
+      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + debeEntry - haberEntry);
+    }
+    return map;
+  }, [entries]);
+
+  /** Asientos del centro de coste seleccionado, más recientes primero. */
+  const centerEntries = useMemo(
+    () =>
+      selectedCenter
+        ? entries.filter((entry) => entry.cost_center_id === selectedCenter.id)
+        : [],
+    [entries, selectedCenter],
+  );
+  const centerDebe = centerEntries.reduce(
+    (sum, entry) => sum + entry.journal_lines.reduce((s, l) => s + Number(l.debe), 0),
+    0,
+  );
+  const centerHaber = centerEntries.reduce(
+    (sum, entry) => sum + entry.journal_lines.reduce((s, l) => s + Number(l.haber), 0),
+    0,
+  );
 
 
   const entryCrud = useCrud("journal_entries", {
