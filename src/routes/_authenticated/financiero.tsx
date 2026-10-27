@@ -634,7 +634,7 @@ function FinancieroPage() {
           <div className="mb-5 grid grid-cols-3 gap-2 border-y border-border py-4 text-sm">
             <div><p className="text-muted-foreground">Total debe</p><p className="tabular break-words font-semibold">{money(centerDebe)}</p></div>
             <div><p className="text-muted-foreground">Haber</p><p className="tabular break-words font-semibold">{money(centerHaber)}</p></div>
-            <div><p className="text-muted-foreground">Asientos</p><p className="tabular break-words font-semibold">{count(centerEntries.length)}</p></div>
+            <div><p className="text-muted-foreground">Asientos</p><p className="tabular break-words font-semibold">{centerEntries.length}</p></div>
           </div>
           <DataTable
             data={centerEntries}
