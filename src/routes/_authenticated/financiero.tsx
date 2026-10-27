@@ -230,14 +230,13 @@ function FinancieroPage() {
     .reduce((a, b) => a + b.debe - b.haber, 0);
   const resultado = ingresos - gastos;
 
-  /** Total movido por cada centro de coste (debe - haber de sus asientos activos). */
+  /** Total debe imputado a cada centro de coste (suma de los apuntes al debe de sus asientos activos). */
   const centerTotals = useMemo(() => {
     const map = new Map<string, number>();
     for (const entry of entries) {
       if (!entry.cost_center_id) continue;
       const debeEntry = entry.journal_lines.reduce((s, l) => s + Number(l.debe), 0);
-      const haberEntry = entry.journal_lines.reduce((s, l) => s + Number(l.haber), 0);
-      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + debeEntry - haberEntry);
+      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + debeEntry);
     }
     return map;
   }, [entries]);
@@ -565,7 +564,7 @@ function FinancieroPage() {
               },
               {
                 key: "total",
-                header: "Total",
+                header: "Total debe",
                 className: "text-right",
                 value: (r) => centerTotals.get(r.id) ?? 0,
                 render: (r) => <span className="tabular font-medium">{money(centerTotals.get(r.id) ?? 0)}</span>,
@@ -635,7 +634,7 @@ function FinancieroPage() {
           <div className="mb-5 grid grid-cols-3 gap-2 border-y border-border py-4 text-sm">
             <div><p className="text-muted-foreground">Debe</p><p className="tabular break-words font-semibold">{money(centerDebe)}</p></div>
             <div><p className="text-muted-foreground">Haber</p><p className="tabular break-words font-semibold">{money(centerHaber)}</p></div>
-            <div><p className="text-muted-foreground">Total</p><p className="tabular break-words font-semibold">{money(centerDebe - centerHaber)}</p></div>
+            <div><p className="text-muted-foreground">Total debe</p><p className="tabular break-words font-semibold">{money(centerDebe)}</p></div>
           </div>
           <DataTable
             data={centerEntries}
