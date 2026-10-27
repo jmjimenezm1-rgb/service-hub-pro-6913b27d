@@ -3,3 +3,4 @@
 - [x] Generar asientos equilibrados automáticamente y revertir cambios/anulaciones sin duplicados.
 - [x] Integrar los asientos vinculados en Financiero y sustituir las contabilizaciones manuales antiguas.
 - [x] Verificar reglas y flujo real con movimientos guardados.
+- [x] Mostrar en Centros de coste el total del debe de sus asientos.
