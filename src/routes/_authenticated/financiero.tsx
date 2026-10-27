@@ -626,6 +626,35 @@ function FinancieroPage() {
         </SheetContent>
       </Sheet>
 
+      <Sheet open={Boolean(selectedCenter) && !selected} onOpenChange={(open) => !open && setSelectedCenter(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+          <SheetHeader className="mb-5 pr-6">
+            <SheetTitle className="break-words">{selectedCenter?.codigo} · {selectedCenter?.nombre}</SheetTitle>
+            <SheetDescription>Asientos imputados a este centro de coste</SheetDescription>
+          </SheetHeader>
+          <div className="mb-5 grid grid-cols-3 gap-2 border-y border-border py-4 text-sm">
+            <div><p className="text-muted-foreground">Debe</p><p className="tabular break-words font-semibold">{money(centerDebe)}</p></div>
+            <div><p className="text-muted-foreground">Haber</p><p className="tabular break-words font-semibold">{money(centerHaber)}</p></div>
+            <div><p className="text-muted-foreground">Total</p><p className="tabular break-words font-semibold">{money(centerDebe - centerHaber)}</p></div>
+          </div>
+          <DataTable
+            data={centerEntries}
+            loading={isLoading}
+            onRowClick={setSelected}
+            searchPlaceholder="Buscar asiento del centro…"
+            emptyMessage="No hay asientos imputados a este centro de coste."
+            columns={[
+              { key: "numero", header: "Asiento", value: (r) => r.numero, render: (r) => <Button variant="link" className="h-auto p-0" onClick={(event) => { event.stopPropagation(); setSelected(r); }}>{r.numero}</Button> },
+              { key: "fecha", header: "Fecha", value: (r) => r.fecha, render: (r) => fecha(r.fecha) },
+              { key: "concepto", header: "Concepto", value: (r) => r.concepto, render: (r) => r.concepto },
+              { key: "reverso", header: "Tipo", value: (r) => r.reversal_of ? "Reverso" : "Asiento", render: (r) => r.reversal_of ? "Reverso" : "Asiento" },
+              { key: "debe", header: "Debe", className: "text-right", value: (r) => r.journal_lines.reduce((s, l) => s + Number(l.debe), 0), render: (r) => <span className="tabular">{money(r.journal_lines.reduce((s, l) => s + Number(l.debe), 0))}</span> },
+              { key: "haber", header: "Haber", className: "text-right", value: (r) => r.journal_lines.reduce((s, l) => s + Number(l.haber), 0), render: (r) => <span className="tabular">{money(r.journal_lines.reduce((s, l) => s + Number(l.haber), 0))}</span> },
+            ]}
+          />
+        </SheetContent>
+      </Sheet>
+
       <EntrySheet entry={selected} onClose={() => setSelected(null)} accounts={accounts} />
 
       <FormDialog
