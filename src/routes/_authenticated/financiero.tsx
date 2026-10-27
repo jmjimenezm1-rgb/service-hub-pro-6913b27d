@@ -103,6 +103,7 @@ function FinancieroPage() {
   const [editingEntry, setEditingEntry] = useState<Payload | null>(null);
   const [selected, setSelected] = useState<EntryRow | null>(null);
   const [selectedBalance, setSelectedBalance] = useState<BalanceRow | null>(null);
+  const [selectedCenter, setSelectedCenter] = useState<(typeof centers)[number] | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Payload | null>(null);
   const [centerOpen, setCenterOpen] = useState(false);
@@ -228,6 +229,35 @@ function FinancieroPage() {
     .filter((b) => b.naturaleza === "gasto")
     .reduce((a, b) => a + b.debe - b.haber, 0);
   const resultado = ingresos - gastos;
+
+  /** Total movido por cada centro de coste (debe - haber de sus asientos activos). */
+  const centerTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of entries) {
+      if (!entry.cost_center_id) continue;
+      const debeEntry = entry.journal_lines.reduce((s, l) => s + Number(l.debe), 0);
+      const haberEntry = entry.journal_lines.reduce((s, l) => s + Number(l.haber), 0);
+      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + debeEntry - haberEntry);
+    }
+    return map;
+  }, [entries]);
+
+  /** Asientos del centro de coste seleccionado, más recientes primero. */
+  const centerEntries = useMemo(
+    () =>
+      selectedCenter
+        ? entries.filter((entry) => entry.cost_center_id === selectedCenter.id)
+        : [],
+    [entries, selectedCenter],
+  );
+  const centerDebe = centerEntries.reduce(
+    (sum, entry) => sum + entry.journal_lines.reduce((s, l) => s + Number(l.debe), 0),
+    0,
+  );
+  const centerHaber = centerEntries.reduce(
+    (sum, entry) => sum + entry.journal_lines.reduce((s, l) => s + Number(l.haber), 0),
+    0,
+  );
 
 
   const entryCrud = useCrud("journal_entries", {
@@ -512,6 +542,7 @@ function FinancieroPage() {
         <TabsContent value="centros" className="mt-4">
           <DataTable
             data={centers}
+            onRowClick={setSelectedCenter}
             toolbar={
               <Button
                 size="sm"
@@ -524,13 +555,20 @@ function FinancieroPage() {
               </Button>
             }
             columns={[
-              { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => r.codigo },
+              { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => <Button variant="link" className="h-auto p-0" aria-label={`Ver asientos del centro ${r.codigo}`} onClick={(event) => { event.stopPropagation(); setSelectedCenter(r); }}>{r.codigo}</Button> },
               { key: "nombre", header: "Nombre", value: (r) => r.nombre, render: (r) => r.nombre },
               {
                 key: "descripcion",
                 header: "Descripción",
                 value: (r) => r.descripcion ?? "",
                 render: (r) => r.descripcion ?? "—",
+              },
+              {
+                key: "total",
+                header: "Total",
+                className: "text-right",
+                value: (r) => centerTotals.get(r.id) ?? 0,
+                render: (r) => <span className="tabular font-medium">{money(centerTotals.get(r.id) ?? 0)}</span>,
               },
               {
                 key: "estado",
@@ -583,6 +621,35 @@ function FinancieroPage() {
               { key: "reverso", header: "Tipo", value: (r) => r.entry?.reversal_of ? "Reverso" : "Asiento", render: (r) => r.entry?.reversal_of ? "Reverso" : "Asiento" },
               { key: "debe", header: "Debe", className: "text-right", value: (r) => r.debe, render: (r) => <span className="tabular">{money(r.debe)}</span> },
               { key: "haber", header: "Haber", className: "text-right", value: (r) => r.haber, render: (r) => <span className="tabular">{money(r.haber)}</span> },
+            ]}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={Boolean(selectedCenter) && !selected} onOpenChange={(open) => !open && setSelectedCenter(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+          <SheetHeader className="mb-5 pr-6">
+            <SheetTitle className="break-words">{selectedCenter?.codigo} · {selectedCenter?.nombre}</SheetTitle>
+            <SheetDescription>Asientos imputados a este centro de coste</SheetDescription>
+          </SheetHeader>
+          <div className="mb-5 grid grid-cols-3 gap-2 border-y border-border py-4 text-sm">
+            <div><p className="text-muted-foreground">Debe</p><p className="tabular break-words font-semibold">{money(centerDebe)}</p></div>
+            <div><p className="text-muted-foreground">Haber</p><p className="tabular break-words font-semibold">{money(centerHaber)}</p></div>
+            <div><p className="text-muted-foreground">Total</p><p className="tabular break-words font-semibold">{money(centerDebe - centerHaber)}</p></div>
+          </div>
+          <DataTable
+            data={centerEntries}
+            loading={isLoading}
+            onRowClick={setSelected}
+            searchPlaceholder="Buscar asiento del centro…"
+            emptyMessage="No hay asientos imputados a este centro de coste."
+            columns={[
+              { key: "numero", header: "Asiento", value: (r) => r.numero, render: (r) => <Button variant="link" className="h-auto p-0" onClick={(event) => { event.stopPropagation(); setSelected(r); }}>{r.numero}</Button> },
+              { key: "fecha", header: "Fecha", value: (r) => r.fecha, render: (r) => fecha(r.fecha) },
+              { key: "concepto", header: "Concepto", value: (r) => r.concepto, render: (r) => r.concepto },
+              { key: "reverso", header: "Tipo", value: (r) => r.reversal_of ? "Reverso" : "Asiento", render: (r) => r.reversal_of ? "Reverso" : "Asiento" },
+              { key: "debe", header: "Debe", className: "text-right", value: (r) => r.journal_lines.reduce((s, l) => s + Number(l.debe), 0), render: (r) => <span className="tabular">{money(r.journal_lines.reduce((s, l) => s + Number(l.debe), 0))}</span> },
+              { key: "haber", header: "Haber", className: "text-right", value: (r) => r.journal_lines.reduce((s, l) => s + Number(l.haber), 0), render: (r) => <span className="tabular">{money(r.journal_lines.reduce((s, l) => s + Number(l.haber), 0))}</span> },
             ]}
           />
         </SheetContent>
