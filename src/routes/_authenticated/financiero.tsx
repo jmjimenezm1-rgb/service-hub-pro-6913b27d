@@ -706,7 +706,7 @@ function FinancieroPage() {
         </SheetContent>
       </Sheet>
 
-      <EntrySheet entry={selected} onClose={() => setSelected(null)} accounts={accounts} />
+      <EntrySheet entry={selected} onClose={() => setSelected(null)} accounts={accounts} centers={centers} />
 
       <FormDialog
         open={entryOpen}
@@ -820,13 +820,50 @@ function EntrySheet({
   entry,
   onClose,
   accounts,
+  centers,
 }: {
   entry: EntryRow | null;
   onClose: () => void;
   accounts: { id: string; codigo: string; nombre: string }[];
+  centers: { id: string; codigo: string; nombre: string }[];
 }) {
   const qc = useQueryClient();
   const [lineOpen, setLineOpen] = useState(false);
+  const [centerId, setCenterId] = useState("");
+  const [savingCenter, setSavingCenter] = useState(false);
+
+  useEffect(() => {
+    setCenterId(entry?.cost_center_id ?? "");
+  }, [entry?.id, entry?.cost_center_id]);
+
+  /** Imputa el asiento a un centro de coste (o lo desimputa). No altera los apuntes. */
+  const assignCenter = async () => {
+    if (!entry) return;
+    setSavingCenter(true);
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("journal_entries")
+        .update({ cost_center_id: centerId || null, updated_by: user.user?.id ?? null })
+        .eq("id", entry.id);
+      if (error) throw error;
+      await logAudit({
+        modulo: "financiero",
+        entidad: "journal_entries",
+        entidadId: entry.id,
+        accion: "update",
+        valorAnterior: { cost_center_id: entry.cost_center_id },
+        valorNuevo: { cost_center_id: centerId || null },
+      });
+      toast.success("Centro de coste actualizado");
+      void qc.invalidateQueries({ queryKey: ["financiero"] });
+      onClose();
+    } catch (e) {
+      toast.error(`No se pudo asignar el centro: ${(e as Error).message}`);
+    } finally {
+      setSavingCenter(false);
+    }
+  };
 
   const { data: lines = [] } = useQuery({
     queryKey: ["financiero", "entry-lines", entry?.id],
