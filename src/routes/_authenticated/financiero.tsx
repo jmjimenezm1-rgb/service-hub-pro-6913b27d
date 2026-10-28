@@ -903,6 +903,33 @@ function EntrySheet({
             </SheetHeader>
 
             <div className="space-y-4 px-4 pb-6">
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-medium">Centro de coste</h3>
+                <div className="flex gap-2">
+                  <Select value={centerId || "none"} onValueChange={(v) => setCenterId(v === "none" ? "" : v)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Sin centro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin centro</SelectItem>
+                      {centers.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.codigo} · {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={savingCenter || centerId === (entry.cost_center_id ?? "")}
+                    onClick={() => void assignCenter()}
+                  >
+                    {savingCenter ? "Guardando…" : "Asignar"}
+                  </Button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">Apuntes</h3>
                 {!entry.source_table ? <Button size="sm" variant="outline" onClick={() => setLineOpen(true)}>
