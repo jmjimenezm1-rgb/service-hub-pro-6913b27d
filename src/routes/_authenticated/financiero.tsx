@@ -244,6 +244,37 @@ function FinancieroPage() {
     return map;
   }, [entries]);
 
+  /** Número de asientos imputados a cada centro de coste. */
+  const centerCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of entries) {
+      if (!entry.cost_center_id) continue;
+      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + 1);
+    }
+    return map;
+  }, [entries]);
+
+  /** Datos de exportación: cada centro con su total de debe y sus asientos. */
+  const centersExport = useMemo<CenterExportRow[]>(
+    () =>
+      centers.map((c) => ({
+        codigo: c.codigo,
+        nombre: c.nombre,
+        descripcion: c.descripcion,
+        totalDebe: centerTotals.get(c.id) ?? 0,
+        asientos: entries
+          .filter((e) => e.cost_center_id === c.id)
+          .map((e) => ({
+            numero: e.numero,
+            fecha: e.fecha,
+            concepto: e.concepto,
+            debe: e.journal_lines.reduce((s, l) => s + Number(l.debe), 0),
+            haber: e.journal_lines.reduce((s, l) => s + Number(l.haber), 0),
+          })),
+      })),
+    [centers, entries, centerTotals],
+  );
+
   /** Asientos del centro de coste seleccionado, más recientes primero. */
   const centerEntries = useMemo(
     () =>
