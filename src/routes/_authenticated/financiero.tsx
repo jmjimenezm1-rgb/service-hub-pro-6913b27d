@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Scale, Trash2, Wallet } from "lucide-react";
+import { BookOpen, FileDown, Plus, Scale, Trash2, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -28,6 +29,8 @@ import {
 } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrud, type Payload } from "@/lib/crud";
+import { logAudit } from "@/lib/audit";
+import { exportCentersPdf, type CenterExportRow } from "@/lib/centers-pdf";
 import { money, fecha, label } from "@/lib/format";
 
 interface EntryRow {
@@ -240,6 +243,37 @@ function FinancieroPage() {
     }
     return map;
   }, [entries]);
+
+  /** Número de asientos imputados a cada centro de coste. */
+  const centerCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of entries) {
+      if (!entry.cost_center_id) continue;
+      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + 1);
+    }
+    return map;
+  }, [entries]);
+
+  /** Datos de exportación: cada centro con su total de debe y sus asientos. */
+  const centersExport = useMemo<CenterExportRow[]>(
+    () =>
+      centers.map((c) => ({
+        codigo: c.codigo,
+        nombre: c.nombre,
+        descripcion: c.descripcion,
+        totalDebe: centerTotals.get(c.id) ?? 0,
+        asientos: entries
+          .filter((e) => e.cost_center_id === c.id)
+          .map((e) => ({
+            numero: e.numero,
+            fecha: e.fecha,
+            concepto: e.concepto,
+            debe: e.journal_lines.reduce((s, l) => s + Number(l.debe), 0),
+            haber: e.journal_lines.reduce((s, l) => s + Number(l.haber), 0),
+          })),
+      })),
+    [centers, entries, centerTotals],
+  );
 
   /** Asientos del centro de coste seleccionado, más recientes primero. */
   const centerEntries = useMemo(
@@ -542,16 +576,34 @@ function FinancieroPage() {
           <DataTable
             data={centers}
             onRowClick={setSelectedCenter}
+            onExport={() =>
+              exportCsv("centros-de-coste", centers, [
+                { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => r.codigo },
+                { key: "nombre", header: "Nombre", value: (r) => r.nombre, render: (r) => r.nombre },
+                { key: "descripcion", header: "Descripción", value: (r) => r.descripcion ?? "", render: (r) => r.descripcion ?? "" },
+                { key: "asientos", header: "Asientos", value: (r) => centerCounts.get(r.id) ?? 0, render: (r) => String(centerCounts.get(r.id) ?? 0) },
+                { key: "total", header: "Total debe", value: (r) => centerTotals.get(r.id) ?? 0, render: (r) => money(centerTotals.get(r.id) ?? 0) },
+              ])
+            }
             toolbar={
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditingCenter(null);
-                  setCenterOpen(true);
-                }}
-              >
-                <Plus className="mr-1.5 h-4 w-4" /> Nuevo centro
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void exportCentersPdf(centersExport, "todos")}
+                >
+                  <FileDown className="mr-1.5 h-4 w-4" /> Exportar PDF
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingCenter(null);
+                    setCenterOpen(true);
+                  }}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" /> Nuevo centro
+                </Button>
+              </div>
             }
             columns={[
               { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => <Button variant="link" className="h-auto p-0" aria-label={`Ver asientos del centro ${r.codigo}`} onClick={(event) => { event.stopPropagation(); setSelectedCenter(r); }}>{r.codigo}</Button> },
@@ -654,7 +706,7 @@ function FinancieroPage() {
         </SheetContent>
       </Sheet>
 
-      <EntrySheet entry={selected} onClose={() => setSelected(null)} accounts={accounts} />
+      <EntrySheet entry={selected} onClose={() => setSelected(null)} accounts={accounts} centers={centers} />
 
       <FormDialog
         open={entryOpen}
@@ -768,13 +820,50 @@ function EntrySheet({
   entry,
   onClose,
   accounts,
+  centers,
 }: {
   entry: EntryRow | null;
   onClose: () => void;
   accounts: { id: string; codigo: string; nombre: string }[];
+  centers: { id: string; codigo: string; nombre: string }[];
 }) {
   const qc = useQueryClient();
   const [lineOpen, setLineOpen] = useState(false);
+  const [centerId, setCenterId] = useState("");
+  const [savingCenter, setSavingCenter] = useState(false);
+
+  useEffect(() => {
+    setCenterId(entry?.cost_center_id ?? "");
+  }, [entry?.id, entry?.cost_center_id]);
+
+  /** Imputa el asiento a un centro de coste (o lo desimputa). No altera los apuntes. */
+  const assignCenter = async () => {
+    if (!entry) return;
+    setSavingCenter(true);
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("journal_entries")
+        .update({ cost_center_id: centerId || null, updated_by: user.user?.id ?? null })
+        .eq("id", entry.id);
+      if (error) throw error;
+      await logAudit({
+        modulo: "financiero",
+        entidad: "journal_entries",
+        entidadId: entry.id,
+        accion: "update",
+        valorAnterior: { cost_center_id: entry.cost_center_id },
+        valorNuevo: { cost_center_id: centerId || null },
+      });
+      toast.success("Centro de coste actualizado");
+      void qc.invalidateQueries({ queryKey: ["financiero"] });
+      onClose();
+    } catch (e) {
+      toast.error(`No se pudo asignar el centro: ${(e as Error).message}`);
+    } finally {
+      setSavingCenter(false);
+    }
+  };
 
   const { data: lines = [] } = useQuery({
     queryKey: ["financiero", "entry-lines", entry?.id],
@@ -814,6 +903,33 @@ function EntrySheet({
             </SheetHeader>
 
             <div className="space-y-4 px-4 pb-6">
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-medium">Centro de coste</h3>
+                <div className="flex gap-2">
+                  <Select value={centerId || "none"} onValueChange={(v) => setCenterId(v === "none" ? "" : v)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Sin centro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin centro</SelectItem>
+                      {centers.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.codigo} · {c.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={savingCenter || centerId === (entry.cost_center_id ?? "")}
+                    onClick={() => void assignCenter()}
+                  >
+                    {savingCenter ? "Guardando…" : "Asignar"}
+                  </Button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">Apuntes</h3>
                 {!entry.source_table ? <Button size="sm" variant="outline" onClick={() => setLineOpen(true)}>
