@@ -576,16 +576,34 @@ function FinancieroPage() {
           <DataTable
             data={centers}
             onRowClick={setSelectedCenter}
+            onExport={() =>
+              exportCsv("centros-de-coste", centers, [
+                { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => r.codigo },
+                { key: "nombre", header: "Nombre", value: (r) => r.nombre, render: (r) => r.nombre },
+                { key: "descripcion", header: "Descripción", value: (r) => r.descripcion ?? "", render: (r) => r.descripcion ?? "" },
+                { key: "asientos", header: "Asientos", value: (r) => centerCounts.get(r.id) ?? 0, render: (r) => String(centerCounts.get(r.id) ?? 0) },
+                { key: "total", header: "Total debe", value: (r) => centerTotals.get(r.id) ?? 0, render: (r) => money(centerTotals.get(r.id) ?? 0) },
+              ])
+            }
             toolbar={
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditingCenter(null);
-                  setCenterOpen(true);
-                }}
-              >
-                <Plus className="mr-1.5 h-4 w-4" /> Nuevo centro
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void exportCentersPdf(centersExport, "todos")}
+                >
+                  <FileDown className="mr-1.5 h-4 w-4" /> Exportar PDF
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingCenter(null);
+                    setCenterOpen(true);
+                  }}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" /> Nuevo centro
+                </Button>
+              </div>
             }
             columns={[
               { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => <Button variant="link" className="h-auto p-0" aria-label={`Ver asientos del centro ${r.codigo}`} onClick={(event) => { event.stopPropagation(); setSelectedCenter(r); }}>{r.codigo}</Button> },
