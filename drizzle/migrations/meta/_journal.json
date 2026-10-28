@@ -29,6 +29,13 @@
       "when": 1792919978263,
       "tag": "0003_adopt_legacy_accounting_and_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793172109687,
+      "tag": "0004_allow_cost_center_assignment",
+      "breakpoints": true
     }
   ]
 }
