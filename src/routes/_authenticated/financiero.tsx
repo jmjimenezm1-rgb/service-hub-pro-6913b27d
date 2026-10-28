@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Scale, Trash2, Wallet } from "lucide-react";
+import { BookOpen, FileDown, Plus, Scale, Trash2, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -28,6 +29,8 @@ import {
 } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrud, type Payload } from "@/lib/crud";
+import { logAudit } from "@/lib/audit";
+import { exportCentersPdf, type CenterExportRow } from "@/lib/centers-pdf";
 import { money, fecha, label } from "@/lib/format";
 
 interface EntryRow {
