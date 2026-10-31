@@ -4,6 +4,7 @@ import autoTable from "jspdf-autotable";
 import { logAudit } from "@/lib/audit";
 import { money, fecha } from "@/lib/format";
 import type { CenterReportRow } from "@/lib/centers-report";
+import { deliverFile } from "@/lib/download";
 
 /**
  * PDF de centros de coste: resumen con el total del debe de cada centro y,
@@ -81,7 +82,7 @@ export async function exportCentersPdf(centers: CenterReportRow[], ejercicio: st
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 24;
   }
 
-  doc.save(`centros-de-coste-${Date.now()}.pdf`);
+  await deliverFile(doc.output("blob"), `centros-de-coste-${ejercicio}-${Date.now()}.pdf`);
 
   await logAudit({
     modulo: "financiero",
