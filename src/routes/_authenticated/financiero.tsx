@@ -30,7 +30,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useCrud, type Payload } from "@/lib/crud";
 import { logAudit } from "@/lib/audit";
-import { exportCentersPdf, type CenterExportRow } from "@/lib/centers-pdf";
+import { exportCentersPdf } from "@/lib/centers-pdf";
+import { buildCenterReport, centerCsvRows, entriesForExercise, type CenterReportRow } from "@/lib/centers-report";
 import { money, fecha, label } from "@/lib/format";
 
 interface EntryRow {
@@ -111,6 +112,7 @@ function FinancieroPage() {
   const [editingAccount, setEditingAccount] = useState<Payload | null>(null);
   const [centerOpen, setCenterOpen] = useState(false);
   const [editingCenter, setEditingCenter] = useState<Payload | null>(null);
+  const [centerExercise, setCenterExercise] = useState("todos");
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["financiero", "entries"],
@@ -233,55 +235,37 @@ function FinancieroPage() {
     .reduce((a, b) => a + b.debe - b.haber, 0);
   const resultado = ingresos - gastos;
 
-  /** Total debe imputado a cada centro de coste (suma de los apuntes al debe de sus asientos activos). */
-  const centerTotals = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const entry of entries) {
-      if (!entry.cost_center_id) continue;
-      const debeEntry = entry.journal_lines.reduce((s, l) => s + Number(l.debe), 0);
-      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + debeEntry);
-    }
-    return map;
-  }, [entries]);
+  const centerPeriodEntries = useMemo(() => entriesForExercise(entries, centerExercise), [entries, centerExercise]);
+  const centerExercises = useMemo(() => Array.from(new Set(entries.map((entry) => entry.ejercicio))).sort((a, b) => b - a).map(String), [entries]);
+  const centersExport = useMemo(() => buildCenterReport(centers, entries, centerExercise), [centers, entries, centerExercise]);
+  const centerTotals = useMemo(() => new Map(centers.map((center, index) => [center.id, centersExport[index]?.totalDebe ?? 0])), [centers, centersExport]);
+  const centerCounts = useMemo(() => new Map(centers.map((center, index) => [center.id, centersExport[index]?.asientos.length ?? 0])), [centers, centersExport]);
+  const selectedCenterReport = centersExport.filter((center) => center.codigo === selectedCenter?.codigo);
 
-  /** Número de asientos imputados a cada centro de coste. */
-  const centerCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const entry of entries) {
-      if (!entry.cost_center_id) continue;
-      map.set(entry.cost_center_id, (map.get(entry.cost_center_id) ?? 0) + 1);
-    }
-    return map;
-  }, [entries]);
-
-  /** Datos de exportación: cada centro con su total de debe y sus asientos. */
-  const centersExport = useMemo<CenterExportRow[]>(
-    () =>
-      centers.map((c) => ({
-        codigo: c.codigo,
-        nombre: c.nombre,
-        descripcion: c.descripcion,
-        totalDebe: centerTotals.get(c.id) ?? 0,
-        asientos: entries
-          .filter((e) => e.cost_center_id === c.id)
-          .map((e) => ({
-            numero: e.numero,
-            fecha: e.fecha,
-            concepto: e.concepto,
-            debe: e.journal_lines.reduce((s, l) => s + Number(l.debe), 0),
-            haber: e.journal_lines.reduce((s, l) => s + Number(l.haber), 0),
-          })),
-      })),
-    [centers, entries, centerTotals],
-  );
+  const exportCenterCsv = (report: CenterReportRow[]) => {
+    exportCsv(`centros-de-coste-${centerExercise}`, centerCsvRows(report), [
+      { key: "tipo", header: "Tipo", value: (r) => r.tipo, render: (r) => r.tipo },
+      { key: "codigo", header: "Código centro", value: (r) => r.codigo, render: (r) => r.codigo },
+      { key: "nombre", header: "Centro de coste", value: (r) => r.nombre, render: (r) => r.nombre },
+      { key: "descripcion", header: "Descripción", value: (r) => r.descripcion, render: (r) => r.descripcion },
+      { key: "totalDebe", header: "Total debe del centro", value: (r) => r.totalDebe, render: (r) => r.totalDebe },
+      { key: "cantidad", header: "Número de asientos", value: (r) => r.cantidad, render: (r) => r.cantidad },
+      { key: "numero", header: "Asiento", value: (r) => r.numero, render: (r) => r.numero },
+      { key: "fecha", header: "Fecha", value: (r) => r.fecha, render: (r) => r.fecha },
+      { key: "concepto", header: "Concepto", value: (r) => r.concepto, render: (r) => r.concepto },
+      { key: "debe", header: "Debe del asiento", value: (r) => r.debe, render: (r) => r.debe },
+      { key: "haber", header: "Haber del asiento", value: (r) => r.haber, render: (r) => r.haber },
+    ]);
+    void logAudit({ modulo: "financiero", entidad: "cost_centers", accion: "export", valorNuevo: { formato: "csv", centros: report.length, ejercicio: centerExercise } });
+  };
 
   /** Asientos del centro de coste seleccionado, más recientes primero. */
   const centerEntries = useMemo(
     () =>
       selectedCenter
-        ? entries.filter((entry) => entry.cost_center_id === selectedCenter.id)
+        ? centerPeriodEntries.filter((entry) => entry.cost_center_id === selectedCenter.id)
         : [],
-    [entries, selectedCenter],
+    [centerPeriodEntries, selectedCenter],
   );
   const centerDebe = centerEntries.reduce(
     (sum, entry) => sum + entry.journal_lines.reduce((s, l) => s + Number(l.debe), 0),
@@ -576,21 +560,20 @@ function FinancieroPage() {
           <DataTable
             data={centers}
             onRowClick={setSelectedCenter}
-            onExport={() =>
-              exportCsv("centros-de-coste", centers, [
-                { key: "codigo", header: "Código", value: (r) => r.codigo, render: (r) => r.codigo },
-                { key: "nombre", header: "Nombre", value: (r) => r.nombre, render: (r) => r.nombre },
-                { key: "descripcion", header: "Descripción", value: (r) => r.descripcion ?? "", render: (r) => r.descripcion ?? "" },
-                { key: "asientos", header: "Asientos", value: (r) => centerCounts.get(r.id) ?? 0, render: (r) => String(centerCounts.get(r.id) ?? 0) },
-                { key: "total", header: "Total debe", value: (r) => centerTotals.get(r.id) ?? 0, render: (r) => money(centerTotals.get(r.id) ?? 0) },
-              ])
-            }
+            onExport={() => exportCenterCsv(centersExport)}
             toolbar={
               <div className="flex flex-wrap gap-2">
+                <Select value={centerExercise} onValueChange={setCenterExercise}>
+                  <SelectTrigger className="w-44" aria-label="Ejercicio de centros de coste"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los ejercicios</SelectItem>
+                    {centerExercises.map((year) => <SelectItem key={year} value={year}>Ejercicio {year}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => void exportCentersPdf(centersExport, "todos")}
+                  onClick={() => void exportCentersPdf(centersExport, centerExercise).catch(() => toast.error("No se pudo exportar el PDF"))}
                 >
                   <FileDown className="mr-1.5 h-4 w-4" /> Exportar PDF
                 </Button>
@@ -613,6 +596,13 @@ function FinancieroPage() {
                 header: "Descripción",
                 value: (r) => r.descripcion ?? "",
                 render: (r) => r.descripcion ?? "—",
+              },
+              {
+                key: "asientos",
+                header: "Asientos",
+                className: "text-right",
+                value: (r) => centerCounts.get(r.id) ?? 0,
+                render: (r) => centerCounts.get(r.id) ?? 0,
               },
               {
                 key: "total",
@@ -681,7 +671,7 @@ function FinancieroPage() {
         <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
           <SheetHeader className="mb-5 pr-6">
             <SheetTitle className="break-words">{selectedCenter?.codigo} · {selectedCenter?.nombre}</SheetTitle>
-            <SheetDescription>Asientos imputados a este centro de coste</SheetDescription>
+            <SheetDescription>Asientos imputados · {centerExercise === "todos" ? "Todos los ejercicios" : `Ejercicio ${centerExercise}`}</SheetDescription>
           </SheetHeader>
           <div className="mb-5 grid grid-cols-3 gap-2 border-y border-border py-4 text-sm">
             <div><p className="text-muted-foreground">Total debe</p><p className="tabular break-words font-semibold">{money(centerDebe)}</p></div>
@@ -690,6 +680,8 @@ function FinancieroPage() {
           </div>
           <DataTable
             data={centerEntries}
+            onExport={() => exportCenterCsv(selectedCenterReport)}
+            toolbar={<Button size="sm" variant="outline" onClick={() => void exportCentersPdf(selectedCenterReport, centerExercise).catch(() => toast.error("No se pudo exportar el PDF"))}><FileDown className="mr-1.5 h-4 w-4" />Exportar PDF</Button>}
             loading={isLoading}
             onRowClick={setSelected}
             searchPlaceholder="Buscar asiento del centro…"
