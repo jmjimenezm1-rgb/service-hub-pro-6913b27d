@@ -3,28 +3,13 @@ import autoTable from "jspdf-autotable";
 
 import { logAudit } from "@/lib/audit";
 import { money, fecha } from "@/lib/format";
-
-export interface CenterExportEntry {
-  numero: string;
-  fecha: string;
-  concepto: string;
-  debe: number;
-  haber: number;
-}
-
-export interface CenterExportRow {
-  codigo: string;
-  nombre: string;
-  descripcion: string | null;
-  totalDebe: number;
-  asientos: CenterExportEntry[];
-}
+import type { CenterReportRow } from "@/lib/centers-report";
 
 /**
  * PDF de centros de coste: resumen con el total del debe de cada centro y,
  * a continuación, el detalle de los asientos imputados a cada uno.
  */
-export async function exportCentersPdf(centers: CenterExportRow[], ejercicio: string): Promise<void> {
+export async function exportCentersPdf(centers: CenterReportRow[], ejercicio: string): Promise<void> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const marginX = 48;
 

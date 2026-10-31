@@ -13,3 +13,4 @@
 - Account mappings live in `accounting_rules`, with category/method overrides and a general fallback; posted entries retain their original accounts until a financial source change requires a reversal.
 - Automatic entries and lines are read-only; corrections happen on the source movement and append reversals to preserve accounting history.
 - Balance drill-down uses the same postings and exercise filter as balance totals, grouped by entry; this keeps account contributions consistent without separate financial reads.
+- Cost-center report data is assembled by the browser-safe centers-report helper for CSV and PDF; totals, drill-down and exports share the selected exercise to avoid inconsistent reports.
