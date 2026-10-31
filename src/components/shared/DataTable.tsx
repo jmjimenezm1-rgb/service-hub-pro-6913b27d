@@ -214,5 +214,5 @@ export function exportCsv<T>(filename: string, rows: T[], columns: Column<T>[]) 
     )
     .join("\n");
   const blob = new Blob([`\uFEFF${header}\n${body}`], { type: "text/csv;charset=utf-8;" });
-  void deliverFile(blob, `${filename}.csv`).catch(() => toast.error("Le navigateur n’a pas autorisé le téléchargement."));
+  void deliverFile(blob, `${filename}.csv`).catch(() => toast.error("El navegador no ha permitido descargar el archivo."));
 }
