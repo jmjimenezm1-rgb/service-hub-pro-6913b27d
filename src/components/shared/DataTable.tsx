@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { deliverFile } from "@/lib/download";
+import { toast } from "sonner";
 
 export interface Column<T> {
   key: string;
@@ -212,10 +214,5 @@ export function exportCsv<T>(filename: string, rows: T[], columns: Column<T>[]) 
     )
     .join("\n");
   const blob = new Blob([`\uFEFF${header}\n${body}`], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  void deliverFile(blob, `${filename}.csv`).catch(() => toast.error("El navegador no ha permitido descargar el archivo."));
 }
